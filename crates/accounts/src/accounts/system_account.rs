@@ -12,15 +12,22 @@ pub struct SystemAccount<'ix> {
 }
 
 unsafe impl<'ix> FromAccountView<'ix> for SystemAccount<'ix> {
-    type Meta<'a>
+    type Meta<'a, 'b, 'c, 'd>
         = NoMeta
     where
-        'ix: 'a;
+        'ix: 'a + 'd,
+        'd: 'c,
+        'c: 'b;
 
     #[inline(always)]
-    fn try_from_account_view<'a>(account_view: &'ix AccountView, _: Self::Meta<'a>) -> Result<Self>
+    fn try_from_account_view<'a, 'b, 'c, 'd>(
+        account_view: &'ix AccountView,
+        _: Self::Meta<'a, 'b, 'c, 'd>,
+    ) -> Result<Self>
     where
-        'ix: 'a,
+        'ix: 'a + 'd,
+        'd: 'c,
+        'c: 'b,
     {
         if unlikely(!account_view.owned_by(&hayabusa_system_program::ID)) {
             error_msg!(
@@ -33,20 +40,20 @@ unsafe impl<'ix> FromAccountView<'ix> for SystemAccount<'ix> {
     }
 }
 
-impl ToAccountView for SystemAccount<'_> {
+impl<'ix> ToAccountView<'ix> for SystemAccount<'ix> {
     #[inline(always)]
-    fn to_account_view(&self) -> &AccountView {
+    fn to_account_view(&self) -> &'ix AccountView {
         self.account_view
     }
 }
 
 impl WritableAllowed for SystemAccount<'_> {}
 
-impl Deref for SystemAccount<'_> {
+impl<'ix> Deref for SystemAccount<'ix> {
     type Target = AccountView;
 
     #[inline(always)]
-    fn deref(&self) -> &Self::Target {
-        &self.account_view
+    fn deref(&self) -> &'ix Self::Target {
+        self.account_view
     }
 }

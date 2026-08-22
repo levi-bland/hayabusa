@@ -13,3 +13,4 @@ hayabusa-errors.workspace = true
 hayabusa-syscalls.workspace = true
 solana-address.workspace = true
 solana-program-error.workspace = true
+solana-instruction-view.workspace = true

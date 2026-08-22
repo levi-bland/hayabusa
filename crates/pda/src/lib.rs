@@ -6,3 +6,9 @@
 mod check_seeds;
 
 pub use check_seeds::*;
+
+use solana_instruction_view::cpi::Signer;
+
+pub trait Seeds {
+    fn to_signer(&self) -> Signer<'_, '_>;
+}

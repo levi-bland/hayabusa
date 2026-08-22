@@ -1,0 +1,2 @@
+[cargo]
+cfgs = ["target_os=\"solana\"", "target_arch=\"bpf\""]

@@ -100,6 +100,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "anyhow"
+version = "1.0.102"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
+
+[[package]]
 name = "ark-bn254"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1166,9 +1172,13 @@ checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
 name = "hayabusa"
 version = "0.2.0"
 dependencies = [
+ "borsh 1.6.0",
+ "borsh-derive 1.6.0",
  "bytemuck",
  "hayabusa-account-attribute-macro",
  "hayabusa-accounts",
+ "hayabusa-cast",
+ "hayabusa-cast-derive",
  "hayabusa-context",
  "hayabusa-cpi",
  "hayabusa-decode-instruction",
@@ -1181,13 +1191,13 @@ dependencies = [
  "hayabusa-events",
  "hayabusa-events-attribute-macro",
  "hayabusa-from-account-views-derive",
+ "hayabusa-idl-macros",
+ "hayabusa-idl-types",
  "hayabusa-instruction-dispatch-macro",
  "hayabusa-len-derive",
  "hayabusa-owner-program-derive",
  "hayabusa-pda",
  "hayabusa-program-attribute-macro",
- "hayabusa-ser",
- "hayabusa-ser-derive",
  "hayabusa-syscalls",
  "hayabusa-system-program",
  "hayabusa-sysvars",
@@ -1203,6 +1213,7 @@ dependencies = [
 name = "hayabusa-account-attribute-macro"
 version = "0.2.0"
 dependencies = [
+ "hayabusa-syn",
  "proc-macro2",
  "quote",
  "syn 2.0.112",
@@ -1212,15 +1223,41 @@ dependencies = [
 name = "hayabusa-accounts"
 version = "0.2.0"
 dependencies = [
+ "hayabusa-cast",
  "hayabusa-common",
  "hayabusa-context",
+ "hayabusa-cpi",
+ "hayabusa-discriminator",
  "hayabusa-errors",
+ "hayabusa-meta-attribute-macro",
  "hayabusa-pda",
  "hayabusa-ser",
  "hayabusa-system-program",
+ "hayabusa-token",
  "hayabusa-utility",
  "pinocchio-log",
  "solana-instruction-view",
+]
+
+[[package]]
+name = "hayabusa-cast"
+version = "0.2.0"
+dependencies = [
+ "bytemuck",
+ "hayabusa-common",
+ "hayabusa-discriminator",
+ "hayabusa-errors",
+ "hayabusa-utility",
+ "pinocchio-log",
+]
+
+[[package]]
+name = "hayabusa-cast-derive"
+version = "0.2.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.112",
 ]
 
 [[package]]
@@ -1313,6 +1350,7 @@ dependencies = [
 name = "hayabusa-errors-attribute-macro"
 version = "0.2.0"
 dependencies = [
+ "hayabusa-syn",
  "proc-macro2",
  "quote",
  "syn 2.0.112",
@@ -1344,6 +1382,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "hayabusa-idl-macros"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "hayabusa-syn",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.112",
+]
+
+[[package]]
+name = "hayabusa-idl-types"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "solana-address",
+ "syn 2.0.112",
+]
+
+[[package]]
 name = "hayabusa-instruction-dispatch-macro"
 version = "0.2.0"
 
@@ -1354,6 +1416,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "sha2 0.10.9",
+ "syn 2.0.112",
+]
+
+[[package]]
+name = "hayabusa-meta-attribute-macro"
+version = "0.2.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
  "syn 2.0.112",
 ]
 
@@ -1374,6 +1445,7 @@ dependencies = [
  "hayabusa-errors",
  "hayabusa-syscalls",
  "solana-address",
+ "solana-instruction-view",
  "solana-program-error 3.0.0",
 ]
 
@@ -1403,12 +1475,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "hayabusa-ser-derive"
+name = "hayabusa-syn"
 version = "0.2.0"
 dependencies = [
+ "anyhow",
+ "hayabusa-idl-types",
  "proc-macro2",
  "quote",
- "sha2 0.10.9",
  "syn 2.0.112",
 ]
 
@@ -1417,6 +1490,7 @@ name = "hayabusa-syscalls"
 version = "0.2.0"
 dependencies = [
  "hayabusa-errors",
+ "hayabusa-utility",
  "solana-address",
  "solana-define-syscall 4.0.1",
 ]
@@ -1449,7 +1523,7 @@ dependencies = [
 name = "hayabusa-token"
 version = "0.2.0"
 dependencies = [
- "hayabusa-accounts",
+ "hayabusa-cast",
  "hayabusa-common",
  "hayabusa-cpi",
  "hayabusa-errors",

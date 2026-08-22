@@ -1,12 +1,10 @@
 // Copyright (c) 2026, Arcane Labs <dev@arcane.fi>
 // SPDX-License-Identifier: Apache-2.0
 
+use hayabusa_cast::{Cast, FromBytesUnchecked};
 use hayabusa_common::{AccountView, Address, Ref};
 use hayabusa_errors::{ProgramError, Result};
-use hayabusa_ser::{
-    Deserialize, FromBytesUnchecked, RawZcDeserialize, RawZcDeserializeUnchecked, Zc,
-};
-use hayabusa_utility::{error_msg, hint::unlikely, OwnerProgram};
+use hayabusa_utility::{error_msg, hint::unlikely, Len, OwnerProgram};
 
 /// Mint data.
 #[repr(C)]
@@ -40,53 +38,10 @@ impl OwnerProgram for Mint {
     const OWNER: Address = crate::ID;
 }
 
-impl Zc for Mint {}
-impl Deserialize for Mint {}
-
-/// SAFETY:
-/// Account data length is validated, account info buffer guaranteed aligned so it is safe to cast from raw ptr.
-unsafe impl RawZcDeserialize for Mint {
-    fn try_deserialize_raw(account_view: &AccountView) -> Result<Ref<Self>> {
-        if unlikely(account_view.data_len() != Self::LEN) {
-            error_msg!(
-                "Mint::try_deserialize_raw: data length mismatch",
-                ProgramError::InvalidAccountData,
-            );
-        }
-
-        if unlikely(!account_view.owned_by(&crate::ID)) {
-            error_msg!(
-                "Mint::try_deserialize_raw: invalid owner",
-                ProgramError::InvalidAccountOwner,
-            );
-        }
-
-        Ok(Ref::map(account_view.try_borrow()?, |d| unsafe {
-            Self::from_bytes_unchecked(d)
-        }))
-    }
-}
-
-impl RawZcDeserializeUnchecked for Mint {
-    #[inline(always)]
-    unsafe fn try_deserialize_raw_unchecked(account_view: &AccountView) -> Result<&Self> {
-        if unlikely(account_view.data_len() != Self::LEN) {
-            error_msg!(
-                "Mint::try_deserialize_raw_unchecked: data length mismatch",
-                ProgramError::InvalidAccountData,
-            );
-        }
-
-        if unlikely(!account_view.owned_by(&Self::OWNER)) {
-            error_msg!(
-                "Mint::try_deserialize_raw_unchecked: invalid owner",
-                ProgramError::InvalidAccountOwner,
-            );
-        }
-
-        Ok(Self::from_bytes_unchecked(account_view.borrow_unchecked()))
-    }
-}
+// SAFETY:
+// ptr alignment guaranteed to be compatible with 0x1 struct alignment
+unsafe impl Cast for Mint {}
+impl Len for Mint {}
 
 impl FromBytesUnchecked for Mint {}
 

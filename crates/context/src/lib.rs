@@ -34,8 +34,12 @@ pub trait FromAccountViews<'ix>
 where
     Self: Sized,
 {
-    /// Attempts to construct `Self` by consuming accounts from the iterator.
-    fn try_from_account_views(account_views: &mut AccountIter<'ix>) -> Result<Self>;
+    /// The arguments passed into the instruction, passed to (optionally) be used in account validation
+    type IxData;
+
+    /// Attempts to construct `Self` by consuming accounts from the iterator and processing ix data
+    fn try_from_account_views(cursor: &mut AccountCursor<'ix>, data: &Self::IxData)
+        -> Result<Self>;
 }
 
 /// Instruction context containing validated accounts and any remaining unparsed accounts.
@@ -61,7 +65,7 @@ where
 ///     let to = &ctx.accounts.to;
 ///     
 ///     // Access remaining accounts if needed
-///     let extra = ctx.remaining_accounts();
+///     let extra = ctx.remaining_accounts_cursor();
 ///     
 ///     // ... instruction logic
 /// }
@@ -73,7 +77,7 @@ where
     /// The validated and deserialized accounts for this instruction.
     /// Type is determined by the instruction's account struct.
     pub accounts: T,
-    
+
     /// Slice of accounts that were not consumed during `T` construction.
     /// Used for dynamic account lists or optional accounts.
     pub remaining_accounts: &'ix [AccountView],
@@ -89,7 +93,7 @@ where
     /// should not be called manually.
     ///
     /// # Process
-    /// 1. Creates an `AccountIter` from the account slice
+    /// 1. Creates an `AccountCursor` from the account slice
     /// 2. Calls `T::try_from_account_views()` to consume required accounts
     /// 3. Stores any remaining unconsumed accounts
     ///
@@ -100,10 +104,10 @@ where
     /// # Errors
     /// Returns an error if account validation fails during `T` construction.
     #[inline(always)]
-    pub fn construct(account_views: &'ix [AccountView]) -> Result<Self> {
-        let mut iter = AccountIter::new(account_views);
+    pub fn construct(account_views: &'ix [AccountView], data: &T::IxData) -> Result<Self> {
+        let mut iter = AccountCursor::new(account_views);
 
-        let accounts = T::try_from_account_views(&mut iter)?;
+        let accounts = T::try_from_account_views(&mut iter, data)?;
 
         Ok(Ctx {
             accounts,
@@ -125,34 +129,12 @@ where
     /// let optional_account = remaining.next()?;
     /// ```
     #[inline(always)]
-    pub fn remaining_accounts(&self) -> AccountIter<'ix> {
-        AccountIter::new(self.remaining_accounts)
+    pub fn remaining_accounts_cursor(&self) -> AccountCursor<'ix> {
+        AccountCursor::new(self.remaining_accounts)
     }
 }
 
-impl<'ix, T> core::ops::Deref for Ctx<'ix, T>
-where
-    T: FromAccountViews<'ix>,
-{
-    type Target = T;
-
-    #[inline(always)]
-    fn deref(&self) -> &Self::Target {
-        &self.accounts
-    }
-}
-
-impl<'ix, T> core::ops::DerefMut for Ctx<'ix, T>
-where
-    T: FromAccountViews<'ix>,
-{
-    #[inline(always)]
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.accounts
-    }
-}
-
-/// Iterator over account views using raw pointer arithmetic for optimal performance.
+/// Cursor/iterator over account views using raw pointer arithmetic for optimal performance.
 ///
 /// This iterator provides zero-overhead iteration over `AccountView` slices by using
 /// raw pointers instead of slice indexing, eliminating bounds checks on each access.
@@ -170,23 +152,22 @@ where
 /// # Lifetime
 /// The `'ix` lifetime ties this iterator to the underlying account data,
 /// ensuring the accounts remain valid for the iterator's lifetime.
-#[derive(Clone)]
-pub struct AccountIter<'ix> {
+pub struct AccountCursor<'ix> {
     /// Current position in the account array. Points to the next account to return.
     ptr: *const AccountView,
-    
+
     /// One-past-the-end pointer. This is a valid (but not dereferenceable) pointer
     /// marking the exclusive end of the iteration range. When `ptr == end`, iteration is complete.
     end: *const AccountView,
-    
+
     /// Phantom data to:
     /// 1. Tie the iterator's lifetime to the original slice lifetime ('ix)
     /// 2. Ensure proper variance (covariant over 'ix)
     _phantom: core::marker::PhantomData<&'ix [AccountView]>,
 }
 
-impl<'ix> AccountIter<'ix> {
-    /// Create a new AccountIter from an AccountView slice
+impl<'ix> AccountCursor<'ix> {
+    /// Create a new AccountCursor from an AccountView slice
     #[inline(always)]
     pub fn new(slice: &'ix [AccountView]) -> Self {
         let ptr = slice.as_ptr();
@@ -202,7 +183,8 @@ impl<'ix> AccountIter<'ix> {
         }
     }
 
-    /// Get the next &AccountView in the iterator
+    /// Advance the cursor and get the next &AccountView
+    #[allow(clippy::should_implement_trait)]
     #[inline(always)]
     pub fn next(&mut self) -> Result<&'ix AccountView> {
         if unlikely(self.ptr == self.end) {
@@ -223,7 +205,7 @@ impl<'ix> AccountIter<'ix> {
     }
 
     /// Returns a slice of the remaining unconsumed elements.
-    /// 
+    ///
     /// # Safety
     /// This is safe because:
     /// - ptr and end are derived from a valid slice
@@ -236,7 +218,7 @@ impl<'ix> AccountIter<'ix> {
         // and len is the correct number of remaining elements (ptr..end).
         unsafe { core::slice::from_raw_parts(self.ptr, len) }
     }
-    
+
     /// Returns the number of remaining elements.
     #[inline(always)]
     pub fn remaining_len(&self) -> usize {

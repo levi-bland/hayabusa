@@ -3,18 +3,21 @@
 
 #![no_std]
 
+#[macro_use]
 mod accounts;
 pub use accounts::{
-    interface::*, mutable::*, program::*, signer::*, system_account::*, unchecked_account::*,
-    zc_account::*, checked_address::*,
+    account::*, checked_address::*, interface::*, mutable::*, program::*, signer::*,
+    system_account::*, unchecked_account::*,
 };
 
 use hayabusa_common::{AccountView, Address};
+use hayabusa_context::AccountCursor;
 use hayabusa_errors::Result;
 
 /// Trait for types that can be constructed from a single account view with optional metadata.
-/// 
-/// This trait is unsafe because implementors can create UB in their implementations. Soundness must be 
+///
+/// # Safety
+/// This trait is unsafe because implementors can create UB in their implementations. Soundness must be
 /// ensured by the implementor.
 ///
 /// This is the fundamental building block for account deserialization. Each account type
@@ -60,10 +63,12 @@ pub unsafe trait FromAccountView<'ix>: Sized {
     /// external information.
     ///
     /// # GAT Bound
-    /// The `where 'ix: 'a` bound ensures metadata lifetimes don't outlive the account data.
-    type Meta<'a>
+    /// The `where 'ix: 'a + 'b + 'c` bound ensures metadata lifetimes don't outlive the account data.
+    type Meta<'a, 'b, 'c, 'd>
     where
-        'ix: 'a;
+        'ix: 'a + 'd,
+        'd: 'c,
+        'c: 'b;
 
     /// Attempts to construct `Self` from an account view and metadata.
     ///
@@ -82,12 +87,63 @@ pub unsafe trait FromAccountView<'ix>: Sized {
     /// # Safety
     /// This function is safe to call, but implementations may use `unsafe` internally
     /// for zero-copy deserialization. All safety invariants must be upheld by the implementor.
-    fn try_from_account_view<'a>(
+    fn try_from_account_view<'a, 'b, 'c, 'd>(
         account_view: &'ix AccountView,
-        meta: Self::Meta<'a>,
+        meta: Self::Meta<'a, 'b, 'c, 'd>,
     ) -> Result<Self>
     where
-        'ix: 'a;
+        'ix: 'a + 'd,
+        'd: 'c,
+        'c: 'b;
+}
+
+pub unsafe trait FromAccountCursor<'ix>: Sized {
+    /// Metadata type required to construct this account type.
+    ///
+    /// Use `NoMeta` for accounts that don't need additional validation parameters.
+    /// Use a custom type (like `&'a Address` or a struct) when validation requires
+    /// external information.
+    ///
+    /// # GAT Bound
+    /// The `where 'ix: 'a + 'b + 'c + 'd` bound ensures metadata lifetimes don't outlive the account data.
+    type Meta<'a, 'b, 'c, 'd>
+    where
+        'ix: 'a + 'd,
+        'd: 'c,
+        'c: 'b;
+
+    fn try_from_account_cursor<'a, 'b, 'c, 'd>(
+        cursor: &mut AccountCursor<'ix>,
+        meta: Self::Meta<'a, 'b, 'c, 'd>,
+    ) -> Result<Self>
+    where
+        'ix: 'a + 'd,
+        'd: 'c,
+        'c: 'b;
+}
+
+unsafe impl<'ix, T: FromAccountView<'ix>> FromAccountCursor<'ix> for T {
+    type Meta<'a, 'b, 'c, 'd>
+        = <T as FromAccountView<'ix>>::Meta<'a, 'b, 'c, 'd>
+    where
+        'ix: 'a + 'd,
+        'd: 'c,
+        'c: 'b;
+
+    #[inline(always)]
+    fn try_from_account_cursor<'a, 'b, 'c, 'd>(
+        cursor: &mut AccountCursor<'ix>,
+        meta: Self::Meta<'a, 'b, 'c, 'd>,
+    ) -> Result<T>
+    where
+        'ix: 'a + 'd,
+        'd: 'c,
+        'c: 'b,
+    {
+        let view = cursor.next()?;
+
+        T::try_from_account_view(view, meta)
+    }
 }
 
 /// Zero-sized type indicating no metadata is required for account construction.
@@ -106,6 +162,7 @@ pub unsafe trait FromAccountView<'ix>: Sized {
 ///     }
 /// }
 /// ```
+#[derive(Default)]
 pub struct NoMeta;
 
 /// Trait for types that can provide access to their underlying `AccountView`.
@@ -124,9 +181,9 @@ pub struct NoMeta;
 ///     msg!("Account: {}", account.to_account_view().address());
 /// }
 /// ```
-pub trait ToAccountView {
+pub trait ToAccountView<'ix> {
     /// Returns a reference to the underlying `AccountView`.
-    fn to_account_view(&self) -> &AccountView;
+    fn to_account_view(&self) -> &'ix AccountView;
 }
 
 /// Trait for types that can initialize a new account via CPI to the System Program.
@@ -187,22 +244,9 @@ where
 /// This is a marker trait with no methods. The safety contract is that any type
 /// implementing this trait must ensure the underlying account is actually writable
 /// (marked as mutable in the transaction).
-///
-/// # Example
-/// ```ignore
-/// // Only Mut<T> implements this
-/// impl<T> WritableAllowed for Mut<T> {}
-///
-/// // Compile-time enforcement
-/// fn requires_mutable<T: WritableAllowed>(account: T) {
-///     // Can only be called with Mut<...> types
-/// }
-/// ```
-pub trait WritableAllowed {}
+pub unsafe trait WritableAllowed {}
 
 /// Trait for types representing a single program.
-///
-/// Provides compile-time access to the program's address for validation and CPI.
 ///
 /// # Example
 /// ```ignore
@@ -222,7 +266,7 @@ pub trait ProgramId {
 
 /// Trait for types representing multiple valid programs.
 ///
-/// Used when an account can be owned by one of several programs (e.g., Token or Token2022).
+/// Used when an account can be one of several programs (e.g. Token or Token2022).
 ///
 /// # Example
 /// ```ignore
@@ -231,11 +275,6 @@ pub trait ProgramId {
 ///         token::ID,
 ///         token_2022::ID,
 ///     ];
-/// }
-///
-/// // Use in validation
-/// if !T::IDS.contains(&account.owner()) {
-///     return Err(ProgramError::InvalidAccountOwner);
 /// }
 /// ```
 pub trait ProgramIds {

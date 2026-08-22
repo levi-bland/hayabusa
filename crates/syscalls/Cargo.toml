@@ -11,4 +11,5 @@ description.workspace = true
 [dependencies]
 solana-address.workspace = true
 hayabusa-errors.workspace = true
+hayabusa-utility.workspace = true
 solana-define-syscall.workspace = true

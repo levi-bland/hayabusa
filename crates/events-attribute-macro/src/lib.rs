@@ -15,11 +15,13 @@ pub fn event(_attr: TokenStream, input: TokenStream) -> TokenStream {
         _ => panic!("#[event] requires named fields"),
     };
 
-    let field_sizes: Vec<_> =
-        fields.iter().map(|f| {
+    let field_sizes: Vec<_> = fields
+        .iter()
+        .map(|f| {
             let ty = &f.ty;
             quote! { <#ty as EventField>::SIZE }
-        }).collect();
+        })
+        .collect();
 
     // offsets
     let mut offset = quote! { 8usize };

@@ -1,0 +1,21 @@
+[package]
+name = "counter-program-test-layout"
+edition = "2021"
+rust-version = "1.89"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[features]
+no-entrypoint = []
+idl-build = ["hayabusa/idl-build"]
+
+[dependencies]
+hayabusa = { path = "../../lang/", features = ["bpf"] }
+
+[profile.release]
+lto = true
+opt-level = 3
+codegen-units = 1
+overflow-checks = true
+panic = "abort"

@@ -6,27 +6,34 @@ use hayabusa_common::AccountView;
 use hayabusa_errors::Result;
 
 pub struct UncheckedAccount<'ix> {
-    pub account_view: &'ix AccountView,
+    account_view: &'ix AccountView,
 }
 
 unsafe impl<'ix> FromAccountView<'ix> for UncheckedAccount<'ix> {
-    type Meta<'a>
+    type Meta<'a, 'b, 'c, 'd>
         = NoMeta
     where
-        'ix: 'a;
+        'ix: 'a + 'd,
+        'd: 'c,
+        'c: 'b;
 
     #[inline(always)]
-    fn try_from_account_view<'a>(account_view: &'ix AccountView, _: Self::Meta<'a>) -> Result<Self>
+    fn try_from_account_view<'a, 'b, 'c, 'd>(
+        account_view: &'ix AccountView,
+        _: Self::Meta<'a, 'b, 'c, 'd>,
+    ) -> Result<Self>
     where
-        'ix: 'a,
+        'ix: 'a + 'd,
+        'd: 'c,
+        'c: 'b,
     {
         Ok(UncheckedAccount { account_view })
     }
 }
 
-impl ToAccountView for UncheckedAccount<'_> {
+impl<'ix> ToAccountView<'ix> for UncheckedAccount<'ix> {
     #[inline(always)]
-    fn to_account_view(&self) -> &AccountView {
+    fn to_account_view(&self) -> &'ix AccountView {
         self.account_view
     }
 }
@@ -34,6 +41,7 @@ impl ToAccountView for UncheckedAccount<'_> {
 impl core::ops::Deref for UncheckedAccount<'_> {
     type Target = AccountView;
 
+    #[inline(always)]
     fn deref(&self) -> &Self::Target {
         self.account_view
     }

@@ -8,8 +8,7 @@ pub mod state;
 
 hayabusa_common::declare_id!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 
-use hayabusa_accounts::ProgramId;
-use hayabusa_common::Address;
+use hayabusa_common::{Address, ProgramId};
 
 pub struct Token;
 

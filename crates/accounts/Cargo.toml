@@ -17,4 +17,9 @@ hayabusa-system-program.workspace = true
 hayabusa-common.workspace = true
 hayabusa-context.workspace = true
 hayabusa-pda.workspace = true
+hayabusa-meta-attribute-macro.workspace = true
+hayabusa-cast.workspace = true
+hayabusa-cpi.workspace = true
+hayabusa-discriminator.workspace = true
+hayabusa-token.workspace = true
 solana-instruction-view = { workspace = true, features = ["cpi"] }

@@ -16,6 +16,7 @@ where
     Self: Sized,
 {
     const DISCRIMINATED_LEN: usize = 8 + core::mem::size_of::<Self>();
+    const LEN: usize = core::mem::size_of::<Self>();
 }
 
 #[inline(always)]

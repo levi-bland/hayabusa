@@ -9,6 +9,20 @@ use solana_account_view::AccountView;
 
 pub trait Discriminator {
     const DISCRIMINATOR: &'static [u8];
+
+    #[inline(always)]
+    fn check_discriminator(view: &AccountView) -> Result<()> {
+        let disc = get_discriminator(view)?;
+
+        if unlikely(disc != Self::DISCRIMINATOR) {
+            error_msg!(
+                "Discriminator: invalid discriminator",
+                ErrorCode::InvalidAccountDiscriminator,
+            );
+        }
+
+        Ok(())
+    }
 }
 
 /// # Safety

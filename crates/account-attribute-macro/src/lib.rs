@@ -1,17 +1,8 @@
 // Copyright (c) 2026, Arcane Labs <dev@arcane.fi>
 // SPDX-License-Identifier: Apache-2.0
-
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, Attribute, ItemStruct, Result};
-
-fn strip_account_attr(attrs: &[Attribute]) -> Vec<Attribute> {
-    attrs
-        .iter()
-        .filter(|attr| !attr.path().is_ident("account"))
-        .cloned()
-        .collect()
-}
 
 /// Expands to:
 /// ```
@@ -57,25 +48,32 @@ fn expand_account(input: ItemStruct) -> Result<proc_macro2::TokenStream> {
     }
 
     let preserved_struct_attrs = strip_account_attr(&attrs);
-    let (impl_generics, _ty_generics, where_clause) = generics.split_for_impl();
+    let (_, ty_generics, where_clause) = generics.split_for_impl();
 
     Ok(quote! {
         #(#preserved_struct_attrs)*
         #[derive(
-            ::bytemuck::Pod,
-            ::bytemuck::Zeroable,
+            ::hayabusa::bytemuck::Pod,
+            ::hayabusa::bytemuck::Zeroable,
             Discriminator,
             Len,
-            Deserialize,
-            DeserializeMut,
-            Zc,
-            ZcDeserialize,
-            ZcDeserializeMut,
-            ZcInitialize,
+            OwnerProgram,
+            FromBytesUnchecked,
+            Cast,
             Copy,
             Clone,
         )]
         #[repr(C)]
-        #vis struct #ident #impl_generics #fields #where_clause
+        #vis struct #ident #ty_generics #fields #where_clause
     })
+}
+
+fn bump_offset_impl(fields: Fields)
+
+fn strip_account_attr(attrs: &[Attribute]) -> Vec<Attribute> {
+    attrs
+        .iter()
+        .filter(|attr| !attr.path().is_ident("account"))
+        .cloned()
+        .collect()
 }

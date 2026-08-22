@@ -1,3 +1,6 @@
+// Copyright (c) 2026, Arcane Labs <dev@arcane.fi>
+// SPDX-License-Identifier: Apache-2.0
+
 #![no_std]
 #![allow(dead_code, unexpected_cfgs)]
 
@@ -7,54 +10,47 @@ declare_id!("HPoDm7Kf63B6TpFKV7S8YSd7sGde6sVdztiDBEVkfuxz");
 
 #[program]
 mod counter_program {
-    use super::*;
-    use super::{UpdateCounter, InitializeCounter};
-    
-    #[inline(always)]
-    fn update_counter<'ix>(ctx: Ctx<'ix, UpdateCounter<'ix>>, amount: u64) -> Result<()> {
-        let mut counter = ctx.counter.try_deserialize_mut()?;
+    use super::{InitializeCounter, UpdateCounter};
+
+    fn update_counter(ctx: Ctx<UpdateCounter>, amount: u64) -> Result<()> {
+        let mut counter = ctx.accounts.counter.cast_mut()?;
 
         counter.count += amount;
 
         Ok(())
     }
 
-    fn initialize_counter<'ix>(ctx: Ctx<'ix, InitializeCounter<'ix>>) -> Result<()> {
-    // account is zeroed on init
-    let _ = ctx.counter.try_initialize(
-        InitAccounts::new(
-            &crate::ID,
-            &ctx.user,
-            &ctx.system_program,
-        ),
-        None,
-    )?;
+    fn initialize_counter(ctx: Ctx<InitializeCounter>) -> Result<()> {
+        let mut counter = ctx.accounts.counter.cast_mut()?;
 
-    Ok(())
-}
+        counter.authority = *ctx.accounts.user.address();
+
+        Ok(())
+    }
 }
 
-#[derive(FromAccountViews)]
-pub struct UpdateCounter<'ix> {
-    pub user: Signer<'ix>,
-    pub counter: Mut<ZcAccount<'ix, CounterAccount>>,
+#[derive(ParseAccounts)]
+pub struct UpdateCounter<'view> {
+    pub counter: Mut<Account<'view, CounterAccount>>,
+    #[account(
+        address = &counter.cast()?.authority,
+    )]
+    pub user: Signer<'view>,
 }
 
-#[derive(FromAccountViews)]
-pub struct InitializeCounter<'ix> {
-    pub user: Mut<Signer<'ix>>,
-    pub counter: Mut<ZcAccount<'ix, CounterAccount>>,
-    pub system_program: Program<'ix, System>,
+#[derive(ParseAccounts)]
+pub struct InitializeCounter<'view> {
+    pub user: Mut<Signer<'view>>,
+    #[account(
+        payer = user,
+    )]
+    pub counter: Init<Account<'view, CounterAccount>>,
+    pub system_program: Program<'view, System>,
+    pub rent: Sysvar<Rent<'view>>,
 }
-
 
 #[account]
-#[derive(OwnerProgram)]
 pub struct CounterAccount {
     pub count: u64,
-}
-
-#[event]
-pub struct TestEvent {
-    pub value: u64,
+    pub authority: Address,
 }

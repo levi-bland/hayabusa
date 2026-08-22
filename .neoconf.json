@@ -1,0 +1,11 @@
+{
+  "rust-analyzer": {
+    "cargo": {
+      "cfgs": ["target_os=\"solana\"", "target_arch=\"bpf\""]
+    },
+    "check": {
+      "command": "clippy",
+      "extraArgs": ["--no-deps"]
+    }
+  }
+}

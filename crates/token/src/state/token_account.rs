@@ -2,11 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::AccountState;
+use hayabusa_cast::{Cast, FromBytesUnchecked};
 use hayabusa_common::{AccountView, Address, Ref};
 use hayabusa_errors::{ProgramError, Result};
-use hayabusa_ser::{
-    Deserialize, FromBytesUnchecked, RawZcDeserialize, RawZcDeserializeUnchecked, Zc,
-};
 use hayabusa_utility::{error_msg, hint::unlikely, OwnerProgram};
 
 /// Token account data.
@@ -54,53 +52,10 @@ impl OwnerProgram for TokenAccount {
     const OWNER: Address = crate::ID;
 }
 
+unsafe impl Cast for TokenAccount {}
+impl Len for TokenAccount {}
+
 impl FromBytesUnchecked for TokenAccount {}
-impl Zc for TokenAccount {}
-impl Deserialize for TokenAccount {}
-
-unsafe impl RawZcDeserialize for TokenAccount {
-    #[inline]
-    fn try_deserialize_raw(account_view: &AccountView) -> Result<Ref<Self>> {
-        if unlikely(account_view.data_len() != Self::LEN) {
-            error_msg!(
-                "TokenAccount::try_deserialize_raw: data length mismatch",
-                ProgramError::InvalidAccountData,
-            );
-        }
-
-        if unlikely(!account_view.owned_by(&crate::ID)) {
-            error_msg!(
-                "TokenAccount::try_deserialize_raw: invalid owner",
-                ProgramError::InvalidAccountOwner,
-            );
-        }
-
-        Ok(Ref::map(account_view.try_borrow()?, |d| unsafe {
-            Self::from_bytes_unchecked(d)
-        }))
-    }
-}
-
-impl RawZcDeserializeUnchecked for TokenAccount {
-    #[inline(always)]
-    unsafe fn try_deserialize_raw_unchecked(account_view: &AccountView) -> Result<&Self> {
-        if unlikely(account_view.data_len() != Self::LEN) {
-            error_msg!(
-                "TokenAccount::try_deserialize_raw_unchecked: data length mismatch",
-                ProgramError::InvalidAccountData,
-            );
-        }
-
-        if unlikely(!account_view.owned_by(&crate::ID)) {
-            error_msg!(
-                "TokenAccount::try_deserialize_raw_unchecked: invalid owner",
-                ProgramError::InvalidAccountOwner,
-            );
-        }
-
-        Ok(Self::from_bytes_unchecked(account_view.borrow_unchecked()))
-    }
-}
 
 impl TokenAccount {
     pub const LEN: usize = core::mem::size_of::<TokenAccount>();

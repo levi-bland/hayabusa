@@ -1,9 +1,9 @@
 // Copyright (c) 2026, Arcane Labs <dev@arcane.fi>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{FromAccountView, NoMeta, ProgramId, ToAccountView};
+use crate::{FromAccountView, NoMeta, ToAccountView};
 use core::ops::Deref;
-use hayabusa_common::{address_eq, AccountView, Address};
+use hayabusa_common::{address_eq, AccountView, Address, ProgramId};
 use hayabusa_errors::{ErrorCode, ProgramError, Result};
 use hayabusa_utility::{error_msg, hint::unlikely};
 
@@ -19,15 +19,22 @@ unsafe impl<'ix, T> FromAccountView<'ix> for Program<'ix, T>
 where
     T: ProgramId,
 {
-    type Meta<'a>
+    type Meta<'a, 'b, 'c, 'd>
         = NoMeta
     where
-        'ix: 'a;
+        'ix: 'a + 'd,
+        'd: 'c,
+        'c: 'b;
 
     #[inline(always)]
-    fn try_from_account_view<'a>(account_view: &'ix AccountView, _: Self::Meta<'a>) -> Result<Self>
+    fn try_from_account_view<'a, 'b, 'c, 'd>(
+        account_view: &'ix AccountView,
+        _: Self::Meta<'a, 'b, 'c, 'd>,
+    ) -> Result<Self>
     where
-        'ix: 'a,
+        'ix: 'a + 'd,
+        'd: 'c,
+        'c: 'b,
     {
         if unlikely(!account_view.executable()) {
             error_msg!(
@@ -50,22 +57,22 @@ where
     }
 }
 
-impl<T> ToAccountView for Program<'_, T>
+impl<'ix, T> ToAccountView<'ix> for Program<'ix, T>
 where
     T: ProgramId,
 {
     #[inline(always)]
-    fn to_account_view(&self) -> &AccountView {
+    fn to_account_view(&self) -> &'ix AccountView {
         self.account_view
     }
 }
 
-impl<T: ProgramId> Deref for Program<'_, T> {
+impl<'ix, T: ProgramId> Deref for Program<'ix, T> {
     type Target = AccountView;
 
     #[inline(always)]
-    fn deref(&self) -> &Self::Target {
-        &self.account_view
+    fn deref(&self) -> &'ix Self::Target {
+        self.account_view
     }
 }
 

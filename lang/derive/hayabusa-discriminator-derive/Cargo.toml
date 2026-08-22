@@ -1,0 +1,13 @@
+[package]
+name = "hayabusa-discriminator-derive"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote.workspace = true
+proc-macro2.workspace = true
+syn.workspace = true
+sha2 = "0.10"

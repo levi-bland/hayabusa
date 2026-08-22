@@ -1,8 +1,6 @@
 // Copyright (c) 2026, Arcane Labs <dev@arcane.fi>
 // SPDX-License-Identifier: Apache-2.0
 
-//! Attribution: https://github.com/anza-xyz/pinocchio/blob/main/sdk/src/entrypoint/mod.rs
-
 #![no_std]
 
 use core::{
@@ -93,30 +91,6 @@ const STATIC_ACCOUNT_DATA: usize = size_of::<RuntimeAccount>() + MAX_PERMITTED_D
 /// Defining an entrypoint conditional on the `bpf-entrypoint` feature. Although the `entrypoint`
 /// module is written inline in this example, it is common to put it into its own file.
 ///
-/// ```no_run
-/// #[cfg(feature = "bpf-entrypoint")]
-/// pub mod entrypoint {
-///
-///     use pinocchio::{
-///         AccountView,
-///         entrypoint,
-///         Address,
-///         ProgramResult
-///     };
-///
-///     entrypoint!(process_instruction);
-///
-///     pub fn process_instruction(
-///         program_id: &Address,
-///         accounts: &[AccountView],
-///         instruction_data: &[u8],
-///     ) -> ProgramResult {
-///         Ok(())
-///     }
-///
-/// }
-/// ```
-///
 /// # Important
 ///
 /// The panic handler set up is different depending on whether the `std` library is available to the
@@ -129,8 +103,6 @@ const STATIC_ACCOUNT_DATA: usize = size_of::<RuntimeAccount>() + MAX_PERMITTED_D
 /// In this case, it is not possible to use the `entrypoint` macro. Use the
 /// [`crate::program_entrypoint!`] macro instead and set up the allocator and panic handler
 /// manually.
-///
-/// [`crate::nostd_panic_handler`]: https://docs.rs/pinocchio/latest/pinocchio/macro.nostd_panic_handler.html
 #[cfg(feature = "alloc")]
 #[macro_export]
 macro_rules! entrypoint {

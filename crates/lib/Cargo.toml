@@ -10,14 +10,19 @@ description.workspace = true
 
 [features]
 alloc = ["hayabusa-entrypoint/alloc"]
+idl-build = ["dep:hayabusa-idl-types", "dep:hayabusa-idl-macros"]
 std = []
 
 [dependencies]
+borsh.workspace = true
+borsh-derive.workspace = true
 bytemuck.workspace = true
 pinocchio-log.workspace = true
 hayabusa-cpi.workspace = true
 hayabusa-discriminator.workspace = true
 hayabusa-discriminator-derive.workspace = true
+hayabusa-cast.workspace = true
+hayabusa-cast-derive.workspace = true
 hayabusa-decode-instruction.workspace = true
 hayabusa-errors.workspace = true
 hayabusa-errors-attribute-macro.workspace = true
@@ -25,11 +30,9 @@ hayabusa-pda.workspace = true
 hayabusa-accounts.workspace = true
 hayabusa-context.workspace = true
 hayabusa-utility.workspace = true
-hayabusa-ser.workspace = true
 hayabusa-instruction-dispatch-macro.workspace = true
 hayabusa-len-derive.workspace = true
 hayabusa-owner-program-derive.workspace = true
-hayabusa-ser-derive.workspace = true
 hayabusa-system-program.workspace = true
 hayabusa-from-account-views-derive.workspace = true
 hayabusa-account-attribute-macro.workspace = true
@@ -40,6 +43,8 @@ hayabusa-events.workspace = true
 hayabusa-events-attribute-macro.workspace = true
 hayabusa-decode-instruction-derive.workspace = true
 hayabusa-program-attribute-macro.workspace = true
+hayabusa-idl-macros = { workspace = true, optional = true }
+hayabusa-idl-types = { workspace = true, optional = true }
 solana-account-view.workspace = true
 solana-address = { workspace = true, features = ["decode", "bytemuck"] }
 solana-instruction-view = { workspace = true, features = ["cpi"] }

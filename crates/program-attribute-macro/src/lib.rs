@@ -1,13 +1,14 @@
 // Copyright (c) 2026, Arcane Labs <dev@arcane.fi>
 // SPDX-License-Identifier: Apache-2.0
 
+use heck::ToUpperCamelCase;
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use quote::quote;
 use syn::{
-    parse_macro_input, FnArg, Item, ItemFn, ItemMod, Pat, Result as SynResult, Type, TypePath, PathArguments,
+    parse_macro_input, FnArg, Item, ItemFn, ItemMod, Pat, PathArguments, Result as SynResult, Type,
+    TypePath,
 };
-use heck::ToUpperCamelCase;
 
 #[proc_macro_attribute]
 pub fn program(_attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -38,8 +39,9 @@ fn expand_program(module: ItemMod) -> SynResult<proc_macro2::TokenStream> {
             #(#instruction_structs)*
         }
 
-        #[cfg(not(feature = "no-entrypoint"))]
+        #[cfg(not(any(feature = "no-entrypoint", feature = "idl-build")))]
         mod #mod_ident {
+            use super::*;
             use super::instruction::*;
 
             default_allocator!();
@@ -51,12 +53,22 @@ fn expand_program(module: ItemMod) -> SynResult<proc_macro2::TokenStream> {
                 views: &[AccountView],
                 ix_data: &[u8],
             ) -> Result<()> {
-                dispatch!(
-                    program_id,
-                    ix_data,
-                    views,
-                    #(#dispatch_arms,)*
-                );
+                if unlikely(program_id != &crate::ID) {
+                    return Err(ProgramError::IncorrectProgramId.into());
+                }
+
+                const DISC_LEN: usize = 8;
+
+                if unlikely(ix_data.len() < DISC_LEN) {
+                    return Err(ProgramError::InvalidInstructionData.into());
+                }
+
+                let (disc, rest) = ix_data.split_at(DISC_LEN);
+
+                match disc {
+                    #(#dispatch_arms)*
+                    _ => Err(ErrorCode::UnknownInstruction.into()),
+                }
             }
 
             #(#preserved_items)*
@@ -70,34 +82,32 @@ fn extract_instruction(
     dispatch_arms: &mut Vec<proc_macro2::TokenStream>,
 ) {
     let fn_name = &func.sig.ident;
+
     let mut fn_name_str = fn_name.to_string().to_upper_camel_case();
     fn_name_str.push_str("Ix");
 
-    let struct_ident = Ident::new(
-        &fn_name_str,
-        Span::call_site(),
-    );
+    let struct_ident = Ident::new(&fn_name_str, Span::mixed_site());
 
     let mut fields = Vec::new();
-    let mut args = Vec::new();
+    let mut arg_idents = Vec::new();
     let mut needs_ix_lifetime = false;
 
-    // skip ctx
     for input in func.sig.inputs.iter().skip(1) {
         let FnArg::Typed(pat) = input else { continue };
-        let Pat::Ident(pat_ident) = &*pat.pat else { continue };
+        let Pat::Ident(pat_ident) = &*pat.pat else {
+            continue;
+        };
 
         let ident = &pat_ident.ident;
         let mut ty = (*pat.ty).clone();
 
-        // detect &[u8]
         if is_u8_slice_ref(&ty) {
             needs_ix_lifetime = true;
             ty = syn::parse_quote! { &'ix [u8] };
         }
 
         fields.push(quote! { pub #ident: #ty });
-        args.push(quote! { #ident });
+        arg_idents.push(ident.clone());
     }
 
     let generics = if needs_ix_lifetime {
@@ -107,7 +117,12 @@ fn extract_instruction(
     };
 
     instruction_structs.push(quote! {
-        #[derive(Discriminator, DecodeIx)]
+        #[derive(
+            Discriminator, DecodeIx,
+            ::hayabusa::borsh::BorshDeserialize,
+            ::hayabusa::borsh::BorshSerialize,
+        )]
+        #[discriminator(namespace = "instruction")]
         #[repr(C)]
         pub struct #struct_ident #generics {
             #(#fields,)*
@@ -115,14 +130,26 @@ fn extract_instruction(
     });
 
     dispatch_arms.push(quote! {
-        #struct_ident => #fn_name(#(#args),*)
+        <#struct_ident>::DISCRIMINATOR => {
+            let ix = <#struct_ident as hayabusa::borsh::BorshDeserialize>::try_from_slice(rest)
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+
+            let ctx = Ctx::construct(views, &ix)?;
+
+            #fn_name(ctx, #(ix.#arg_idents),*)
+                .map_err(Into::into)
+        }
     });
 }
 
 fn is_u8_slice_ref(ty: &Type) -> bool {
     let Type::Reference(r) = ty else { return false };
-    let Type::Slice(slice) = &*r.elem else { return false };
-    let Type::Path(TypePath { path, .. }) = &*slice.elem else { return false };
+    let Type::Slice(slice) = &*r.elem else {
+        return false;
+    };
+    let Type::Path(TypePath { path, .. }) = &*slice.elem else {
+        return false;
+    };
 
     path.segments.len() == 1
         && path.segments[0].ident == "u8"

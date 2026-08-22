@@ -14,6 +14,6 @@ hayabusa-cpi.workspace = true
 hayabusa-errors.workspace = true
 hayabusa-utility.workspace = true
 hayabusa-ser.workspace = true
-hayabusa-accounts.workspace = true
 hayabusa-common.workspace = true
+hayabusa-cast.workspace = true
 solana-instruction-view = { workspace = true, features = ["cpi"] }

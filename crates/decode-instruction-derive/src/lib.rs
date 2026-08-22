@@ -5,8 +5,8 @@ use proc_macro::TokenStream;
 use proc_macro2::{Span, TokenStream as TokenStream2};
 use quote::{quote, ToTokens};
 use syn::{
-    parse_macro_input, spanned::Spanned, Data, DeriveInput, Error, Fields, GenericParam,
-    Generics, Ident, Lifetime, LifetimeParam, Type, TypeArray, TypePath, TypeReference, TypeSlice,
+    parse_macro_input, spanned::Spanned, Data, DeriveInput, Error, Fields, GenericParam, Generics,
+    Ident, Lifetime, LifetimeParam, Type, TypeArray, TypePath, TypeReference, TypeSlice,
 };
 
 #[proc_macro_derive(DecodeIx)]
@@ -40,7 +40,12 @@ fn expand_decode_ix(input: DeriveInput) -> Result<TokenStream2, Error> {
                 ))
             }
         },
-        _ => return Err(Error::new(Span::call_site(), "DecodeIx derive only supports structs")),
+        _ => {
+            return Err(Error::new(
+                Span::call_site(),
+                "DecodeIx derive only supports structs",
+            ))
+        }
     };
 
     // Decide the lifetime used for DecodeIx<'ix>:
@@ -59,8 +64,16 @@ fn expand_decode_ix(input: DeriveInput) -> Result<TokenStream2, Error> {
     //
     // To do that, we record per-field decode "ops" in order, with a marker for the slice.
     enum Op {
-        Fixed { ty: Type, size: TokenStream2, decode: TokenStream2, init: TokenStream2 },
-        Slice { name: Ident, ty: Type },
+        Fixed {
+            ty: Type,
+            size: TokenStream2,
+            decode: TokenStream2,
+            init: TokenStream2,
+        },
+        Slice {
+            name: Ident,
+            ty: Type,
+        },
     }
 
     let mut ops: Vec<Op> = Vec::new();
@@ -160,7 +173,13 @@ fn expand_decode_ix(input: DeriveInput) -> Result<TokenStream2, Error> {
 
     for op in ops {
         match op {
-            Op::Fixed { ty: _ty, size, decode, init, .. } => {
+            Op::Fixed {
+                ty: _ty,
+                size,
+                decode,
+                init,
+                ..
+            } => {
                 // For PhantomData we used size=0 and a direct let.
                 decode_stmts.push(decode);
                 // If size is 0usize, still ok to add; but avoid useless add for tidiness

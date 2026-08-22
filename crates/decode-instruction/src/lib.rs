@@ -80,7 +80,7 @@ use hayabusa_errors::Result;
 ///
 /// # Future Improvements
 /// Once `#[program]` is implemented, manual implementations won't be necessary
-/// 
+///
 pub trait DecodeIx<'ix>: Sized {
     /// Decodes instruction parameters from raw bytes.
     ///

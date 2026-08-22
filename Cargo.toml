@@ -1,5 +1,11 @@
 [workspace]
-members = ["crates/*"]
+members = [
+  "lang",
+  "lang/macros/*",
+  "lang/attribute/*",
+  "lang/derive/*",
+  #"lang/syn",
+]
 exclude = ["examples"]
 resolver = "2"
 
@@ -9,48 +15,30 @@ edition = "2021"
 license = "Apache-2.0"
 authors = ["Levi Bland <levi@arcane.fi>"]
 repository = "https://github.com/arcane-fi/hayabusa"
-rust-version = "1.82"
-description = "Hayabusa: lightweight Solana runtime library."
+rust-version = "1.89"
+description = "Hayabusa: lightweight Solana runtime framework."
 
 [workspace.dependencies]
 bytemuck = "1.21.0"
+borsh = { version = "=1", default-features = false }
+borsh-derive = { version = "=1", default-features = false }
 pinocchio-log = "0.5.1"
-sha2 = "0.10"
 quote = "1.0"
 proc-macro2 = "1.0"
 heck = "0.5.0"
 syn = "2.0"
-solana-address = "2.0"
+solana-address = "2.6"
 solana-account-view = "1.0"
 solana-instruction-view = "1.0"
 solana-program-error = "3.0"
-solana-define-syscall = "4.0"
-hayabusa-accounts = { version = "0.2.0", path = "crates/accounts" }
-hayabusa-account-attribute-macro = { version = "0.2.0", path = "crates/account-attribute-macro" }
-hayabusa-discriminator = { version = "0.2.0", path = "crates/discriminator" }
-hayabusa-discriminator-derive = { version = "0.2.0", path = "crates/discriminator-derive" }
-hayabusa-decode-instruction = { version = "0.2.0", path = "crates/decode-instruction" }
-hayabusa-errors = { version = "0.2.0", path = "crates/errors" }
-hayabusa-errors-attribute-macro = { version = "0.2.0", path = "crates/errors-attribute-macro" }
-hayabusa-pda = { version = "0.2.0", path = "crates/pda" }
-hayabusa-utility = { version = "0.2.0", path = "crates/utility" }
-hayabusa-context = { version = "0.2.0", path = "crates/context" }
-hayabusa-ser = { version = "0.2.0", path = "crates/ser" }
-hayabusa-instruction-dispatch-macro = { version = "0.2.0", path = "crates/instruction-dispatch-macro" }
-hayabusa-len-derive = { version = "0.2.0", path = "crates/len-derive" }
-hayabusa-owner-program-derive = { version = "0.2.0", path = "crates/owner-program-derive" }
-hayabusa-ser-derive = { version = "0.2.0", path = "crates/ser-derive" }
-hayabusa-cpi = { version = "0.2.0", path = "crates/cpi" }
-hayabusa-from-account-views-derive = { version = "0.2.0", path = "crates/from-account-views-derive" }
-hayabusa-system-program = { version = "0.2.0", path = "crates/system-program" }
-hayabusa-token = { version = "0.2.0", path = "crates/token" }
-hayabusa-token2022 = { version = "0.2.0", path = "crates/token2022" }
-hayabusa-token-interface = { version = "0.2.0", path = "crates/token-interface" }
-hayabusa-entrypoint = { version = "0.2.0", path = "crates/entrypoint" }
-hayabusa-syscalls = { version = "0.2.0", path = "crates/syscalls" }
-hayabusa-sysvars = { version = "0.2.0", path = "crates/sysvars" }
-hayabusa-common = { version = "0.2.0", path = "crates/common" }
-hayabusa-events = { version = "0.2.0", path = "crates/events" }
-hayabusa-events-attribute-macro = { version = "0.2.0", path = "crates/events-attribute-macro" }
-hayabusa-decode-instruction-derive = { version = "0.2.0", path = "crates/decode-instruction-derive" }
-hayabusa-program-attribute-macro = { version = "0.2.0", path = "crates/program-attribute-macro" }
+solana-define-syscall = "5.0"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1.0"
+hayabusa = { path = "lang/hayabusa" }
+hayabusa-err-macro = { path = "lang/macros/err-macro" }
+hayabusa-account-attribute = { path = "lang/attribute/hayabusa-account-attribute" }
+hayabusa-discriminator-derive = { path = "lang/derive/hayabusa-discriminator-derive" }
+hayabusa-impl-dyn-account-macro = { path = "lang/macros/impl-dyn-account-macro" }
+hayabusa-program-attribute = { path = "lang/attribute/hayabusa-program-attribute" }
+hayabusa-parse-accounts-derive = { path = "lang/derive/hayabusa-parse-accounts-derive" }

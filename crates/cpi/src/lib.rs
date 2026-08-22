@@ -18,7 +18,7 @@ use solana_program_error::ProgramError;
 /// # Example
 /// ```ignore
 /// pub struct SystemProgram;
-/// 
+///
 /// impl CheckProgramId for SystemProgram {
 ///     const ID: Address = system_program::ID;
 /// }
@@ -50,8 +50,7 @@ pub trait CheckProgramId {
 /// Context for Cross-Program Invocation (CPI) calls.
 ///
 /// `CpiCtx` bundles the program being invoked, the accounts required for the instruction,
-/// and optional PDA signers. It validates the program ID at construction to catch errors
-/// early.
+/// and optional PDA signers
 ///
 /// # Type Parameters
 /// - `'ix`: Instruction execution lifetime (accounts must live this long)
@@ -59,12 +58,6 @@ pub trait CheckProgramId {
 /// - `'b`: Signer seeds lifetime
 /// - `'c`: Individual seed component lifetime
 /// - `T`: The account struct type implementing `CheckProgramId`
-///
-/// # Lifetimes Explained
-/// The complex lifetime structure ensures:
-/// - Accounts live for the full instruction (`'ix`)
-/// - Signers can have shorter lifetimes (built on stack)
-/// - Seed slices and components maintain proper borrowing relationships
 ///
 /// # Example
 /// ```ignore
@@ -92,11 +85,11 @@ pub trait CheckProgramId {
 pub struct CpiCtx<'ix, 'a, 'b, 'c, T: CheckProgramId> {
     /// The program being invoked via CPI.
     pub program: &'ix AccountView,
-    
+
     /// The accounts required for the CPI instruction.
     /// Type determines which instruction is being called.
     pub accounts: T,
-    
+
     /// Optional PDA signers for the CPI.
     /// Required when the CPI needs to sign as a PDA owned by the calling program.
     pub signers: Option<&'a [Signer<'b, 'c>]>,
@@ -171,7 +164,7 @@ impl<'ix, 'a, 'b, 'c, T: CheckProgramId> CpiCtx<'ix, 'a, 'b, 'c, T> {
     /// let bump = [vault_bump];
     /// let seeds = seeds!(b"vault", user.key().as_ref(), &bump);
     /// let signer = Signer::from(&seeds);
-    /// 
+    ///
     /// let ctx = CpiCtx::try_new_with_signer(
     ///     &token_program,
     ///     Transfer { from: &vault, to: &user_account, authority: &vault_pda },

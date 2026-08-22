@@ -8,7 +8,9 @@ publish = false
 crate-type = ["cdylib", "lib"]
 
 [features]
+default = ["idl-build"]
 no-entrypoint = []
+idl-build = ["hayabusa/idl-build"]
 
 [dependencies]
 bytemuck.workspace = true
