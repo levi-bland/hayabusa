@@ -1,4 +1,4 @@
-// Copyright (c) 2026, Arcane Labs <dev@arcane.fi>
+// Copyright (c) 2026, Levi Bland <levi.bland@icloud.com>
 // SPDX-License-Identifier: Apache-2.0
 
 #[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
@@ -22,6 +22,10 @@ impl From<[u8; 32]> for Address {
 impl Address {
     pub const fn new(addr: solana_address::Address) -> Address {
         Address(addr)
+    }
+
+    pub fn to_solana_address(&self) -> solana_address::Address {
+        self.0
     }
 }
 

@@ -1,12 +1,12 @@
-// Copyright (c) 2026, Arcane Labs <dev@arcane.fi>
+// Copyright (c) 2026, Levi Bland <levi.bland@icloud.com>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::prelude::*;
 
 #[inline(always)]
 pub fn try_find_program_address(seeds: &[&[u8]], program_id: &Address) -> Result<(Address, u8)> {
-    match solana_address::Address::try_find_program_address(seeds, program_id) {
-        Some(t) => Ok((Address::from(t.0), t.1)),
+    match solana_address::Address::try_find_program_address(seeds, &program_id.to_solana_address()) {
+        Some((addr, bump)) => Ok((Address::from(addr), bump)),
         None => err!(
             "try_find_program_address: program address does not exist",
             ErrorCode::ProgramAddressDoesNotExist,
@@ -17,7 +17,7 @@ pub fn try_find_program_address(seeds: &[&[u8]], program_id: &Address) -> Result
 #[inline(always)]
 pub fn try_create_program_address(seeds: &[&[u8]], program_id: &Address) -> Result<Address> {
     // Open a PR to standardise assoc. func. naming, this should be try_create_program_address
-    match solana_address::Address::create_program_address(seeds, program_id) {
+    match solana_address::Address::create_program_address(seeds, &program_id.to_solana_address()) {
         Ok(a) => Ok(Address::from(a)),
         Err(_) => err!(
             "try_create_program_address: program address does not exist",
