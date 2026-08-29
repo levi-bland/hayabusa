@@ -231,7 +231,7 @@ impl<'view> AccountInit<'view, Account<'view, TokenAccount>> for TokenAccount {
         let _: Mut<UncheckedAccount<'_>> = Mut::parse(view, &mut NoMeta)?;
 
         let (_, bump) = try_find_program_address(meta.signer.as_slice_of_slices(), &Token::ID)?;
-       
+
         // SAFETY: `meta.bump_ptr` is a valid `'c`-rooted pointer (guaranteed by
         // calling code), and `'c: 'b`, so a reborrow of it lives at least `'b`
         // satisfying `CpiSigner<'b, 'a>`'s seed lifetime. Write the bump, then

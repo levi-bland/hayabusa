@@ -1,20 +1,41 @@
 // Copyright (c) 2026, Levi Bland <levi.bland@icloud.com>
 // SPDX-License-Identifier: Apache-2.0
 
+pub mod approve;
+pub mod approve_checked;
 pub mod burn;
 pub mod burn_checked;
+pub mod close_account;
+pub mod freeze_account;
 pub mod initialize_account;
+pub mod initialize_account2;
 pub mod initialize_account3;
 pub mod initialize_mint;
 pub mod initialize_mint2;
+pub mod initialize_multisig;
+pub mod initialize_multisig2;
 pub mod mint_to;
 pub mod mint_to_checked;
+pub mod revoke;
+pub mod set_authority;
+pub mod sync_native;
+pub mod thaw_account;
 pub mod transfer;
 pub mod transfer_checked;
 
 pub use initialize_account::InitializeAccount;
 pub use initialize_account3::InitializeAccount3;
+pub use initialize_account2::InitializeAccount2;
 pub use initialize_mint::InitializeMint;
 pub use initialize_mint2::InitializeMint2;
+pub use approve::Approve;
+pub use approve_checked::ApproveChecked;
+pub use close_account::CloseAccount;
+pub use freeze_account::FreezeAccount;
 pub use transfer::Transfer;
 pub use transfer_checked::TransferChecked;
+pub use thaw_account::ThawAccount;
+pub use initialize_multisig2::InitializeMultisig2;
+pub use revoke::Revoke;
+pub use set_authority::SetAuthority;
+pub use sync_native::SyncNative;
