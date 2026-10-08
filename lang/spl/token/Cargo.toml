@@ -1,0 +1,16 @@
+[package]
+name = "hayabusa-spl-token"
+version = "0.1.0"
+edition = "2024"
+
+[features]
+default = ["bpf"]
+bpf = ["hayabusa-common/bpf"]
+debug-logs = []
+
+[dependencies]
+hayabusa-spl-token-common.workspace = true
+hayabusa-common.workspace = true
+solana-program-error.workspace = true
+hayabusa-invoke-cpi-macros.workspace = true
+hayabusa-err-macro.workspace = true

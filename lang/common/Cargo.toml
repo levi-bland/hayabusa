@@ -1,0 +1,21 @@
+[package]
+name = "hayabusa-common"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["bpf"]
+bpf = []
+
+[dependencies]
+solana-program-error.workspace = true
+solana-define-syscall.workspace = true
+solana-address = { workspace = true, features = [
+    "decode",
+    "curve25519",
+    "copy",
+] }
+bytemuck = { workspace = true, features = ["derive"] }
+pinocchio-log.workspace = true
+hayabusa-invoke-cpi-macros.workspace = true
+hayabusa-err-macro.workspace = true

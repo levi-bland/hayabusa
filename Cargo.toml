@@ -4,6 +4,8 @@ members = [
   "lang/macros/*",
   "lang/attribute/*",
   "lang/derive/*",
+  "lang/common",
+  "lang/spl/*",
   #"lang/syn",
 ]
 exclude = ["examples"]
@@ -28,17 +30,19 @@ proc-macro2 = "1.0"
 heck = "0.5.0"
 syn = "2.0"
 solana-address = "2.6"
-solana-account-view = "1.0"
-solana-instruction-view = "1.0"
 solana-program-error = "3.0"
 solana-define-syscall = "5.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 anyhow = "1.0"
 hayabusa = { path = "lang/hayabusa" }
+hayabusa-common = { path = "lang/common" }
+hayabusa-spl-token = { path = "lang/spl/token" }
+hayabusa-spl-token-common = { path = "lang/spl/token-common" }
 hayabusa-err-macro = { path = "lang/macros/err-macro" }
 hayabusa-account-attribute = { path = "lang/attribute/hayabusa-account-attribute" }
 hayabusa-discriminator-derive = { path = "lang/derive/hayabusa-discriminator-derive" }
 hayabusa-impl-dyn-account-macro = { path = "lang/macros/impl-dyn-account-macro" }
 hayabusa-program-attribute = { path = "lang/attribute/hayabusa-program-attribute" }
 hayabusa-parse-accounts-derive = { path = "lang/derive/hayabusa-parse-accounts-derive" }
+hayabusa-invoke-cpi-macros = { path = "lang/macros/invoke-cpi-macros" }

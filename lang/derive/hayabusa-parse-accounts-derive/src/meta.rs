@@ -1,28 +1,28 @@
 // Copyright (c) 2026, Levi Bland <levi.bland@icloud.com>
 // SPDX-License-Identifier: Apache-2.0
 
-
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{GenericArgument, PathArguments, Type};
- 
+
 use crate::{
     attributes::{
         bump::{classify_bump, require_bump_kind_find, BumpKind},
         payer::extract_payer,
         seeds::extract_seeds,
-        spl::spl_account_assert, AccountArg,
+        spl::spl_account_assert,
+        AccountArg,
     },
     AccountField,
 };
- 
+
 // ---------------------------------------------------------------------------
 // Wrapper detection
 // ---------------------------------------------------------------------------
- 
+
 /// The relevant structural shape of a field type.
 pub enum FieldShape {
-    /// No init/pda wrapper — plain parse with NoMeta (or SPL meta).
+    /// No init/pda wrapper — plain parse.
     Plain,
     /// `Init<Account<'_, T>>` — account initialisation.
     Init,
@@ -31,7 +31,7 @@ pub enum FieldShape {
     /// `Pda<Account<'_, T>>` or `Mut<Pda<Account<'_, T>>>` — existing PDA validation.
     Pda,
 }
- 
+
 pub fn detect_shape(ty: &Type) -> FieldShape {
     match outermost_ident(ty).as_deref() {
         Some("Init") => {
@@ -61,7 +61,7 @@ pub fn detect_shape(ty: &Type) -> FieldShape {
         _ => FieldShape::Plain,
     }
 }
- 
+
 fn outermost_ident(ty: &Type) -> Option<String> {
     if let Type::Path(tp) = ty {
         tp.path.segments.last().map(|s| s.ident.to_string())
@@ -69,7 +69,7 @@ fn outermost_ident(ty: &Type) -> Option<String> {
         None
     }
 }
- 
+
 fn peel_single_generic<'t>(ty: &'t Type, wrapper: &str) -> Option<&'t Type> {
     if let Type::Path(tp) = ty {
         if let Some(last) = tp.path.segments.last() {
@@ -84,7 +84,7 @@ fn peel_single_generic<'t>(ty: &'t Type, wrapper: &str) -> Option<&'t Type> {
     }
     None
 }
- 
+
 /// Extract the inner `T` from `Account<'_, T>`, peeling any number of
 /// `Init`, `Pda`, `Mut` wrappers first.
 pub fn extract_inner_t(ty: &Type) -> Option<&Type> {
@@ -110,20 +110,20 @@ pub fn extract_inner_t(ty: &Type) -> Option<&Type> {
         }
     }
 }
- 
+
 // ---------------------------------------------------------------------------
 // SPL detection
 // ---------------------------------------------------------------------------
- 
+
 fn is_spl_token_init(field: &AccountField) -> bool {
     let has = |k: &str| field.args.iter().any(|a| a.key() == k);
     has("payer") && has("mint") && has("owner")
 }
- 
+
 // ---------------------------------------------------------------------------
 // Bump helpers
 // ---------------------------------------------------------------------------
- 
+
 /// Build the `__PdaByteSliceMeta::new(seeds, bump_ptr)` expression for a
 /// `Pda` field and return any bump_ptr argument for the bumps struct.
 ///
@@ -140,7 +140,7 @@ fn pda_meta(
             "Pda account requires `#[account(seeds = [...])]`",
         )
     })?;
- 
+
     let bump_kind = classify_bump(&field.args, &field.ident);
     let field_ident = &field.ident;
     let view_ident = format_ident!("{}_view", field_ident);
@@ -151,49 +151,52 @@ fn pda_meta(
             "type must include `Pda<T>`",
         ));
     }
- 
+
     // Build seed slice elements, appending the bump as a final `&[bump]`
     // when it is a known value.
     let mut seed_elems: Vec<TokenStream> = seeds.iter().map(|e| quote! { #e }).collect();
- 
+
     let (bump_ptr_arg, needs_find_bump) = match bump_kind {
         None => {
-            // No bump attribute at all — `bump_ptr: None`, no extra seed
+            // No bump attribute at all, `bump_ptr: None`, no extra seed
             (quote! { None }, false)
         }
- 
+
         Some(BumpKind::Find) => {
-            // `bump` bare — find the PDA, store bump into bumps.<field>
+            // `bump` bare, find the PDA, store bump into bumps.<field>
             (quote! { Some(&mut bumps.#field_ident) }, true)
         }
- 
+
         Some(BumpKind::SelfRef { subfield }) => {
-            // `bump = <this_field>.<subfield>` — read from on-chain data
+            // `bump = <this_field>.<subfield>`, read from on-chain data
             // We need the inner T to call T::cast(view)?
             let inner_t = extract_inner_t(&field.ty).ok_or_else(|| {
-                syn::Error::new(field.ident.span(), "could not extract inner T for bump cast")
+                syn::Error::new(
+                    field.ident.span(),
+                    "could not extract inner T for bump cast",
+                )
             })?;
             seed_elems.push(quote! {
                 &[#inner_t::cast(#view_ident)?.#subfield]
             });
             (quote! { None }, false)
         }
- 
+
         Some(BumpKind::Expr { expr }) => {
             // `bump = <arbitrary expr>`
             seed_elems.push(quote! { &[#expr] });
             (quote! { None }, false)
         }
     };
- 
+
     let meta = quote! {
-        ::hayabusa::accounts::pda::__PdaByteSliceMeta::new(&[#(#seed_elems),*], #bump_ptr_arg)
+        ::hayabusa::prelude::__PdaByteSliceMeta::new(&[#(#seed_elems),*], #bump_ptr_arg)
     };
- 
+
     Ok((meta, needs_find_bump))
 }
 
-fn pda_init_meta<'a>(field: &'a AccountField) -> syn::Result<(TokenStream, Vec<TokenStream>)> {
+fn pda_init_meta<'a>(field: &'a AccountField) -> syn::Result<(TokenStream, TokenStream)> {
     let seeds = extract_seeds(&field.args).ok_or_else(|| {
         syn::Error::new(
             field.ident.span(),
@@ -212,9 +215,14 @@ fn pda_init_meta<'a>(field: &'a AccountField) -> syn::Result<(TokenStream, Vec<T
     }
 
     let seed_elems: Vec<TokenStream> = seeds.iter().map(|e| quote! { #e }).collect();
+    let initial_len = seed_elems.len();
 
-    Ok((quote! { &mut bumps.#field_ident }, seed_elems))
-    
+    let ts = quote! {
+        let mut __seeds_buffer = ::hayabusa::prelude::seeds!(#(#seed_elems),*, ::hayabusa::prelude::Seed::from(&[][..]));
+        let __growable_signer = ::hayabusa::prelude::GrowableSigner::try_new(&mut __seeds_buffer, #initial_len)?;
+    };
+
+    Ok((quote! { Some(&mut bumps.#field_ident) }, ts))
 }
 
 fn is_pda(ty: &syn::Type) -> bool {
@@ -237,25 +245,30 @@ fn is_pda(ty: &syn::Type) -> bool {
     }
     false
 }
- 
+
 // ---------------------------------------------------------------------------
 // Public entry point
 // ---------------------------------------------------------------------------
- 
-/// Returns `(meta_expr, extra_items, needs_find_bump)`.
+
+/// Returns `(meta_expr, extra_items, preceeding_expressions, needs_find_bump)`.
 ///
-/// `extra_items` — top-level `const _` assertion blocks (SPL trait checks).
-/// `needs_find_bump` — true when this field's bump should appear in the
+/// `extra_items` - top-level `const _` assertion blocks (SPL trait checks).
+/// `preceeding_expressions` - any expressions that must be evaluated before the meta expression.
+/// `needs_find_bump` - true when this field's bump should appear in the
 ///                     generated `Bumps` struct.
 pub fn resolve_meta(
     fields: &[AccountField],
     field_index: usize,
-) -> syn::Result<(TokenStream, TokenStream, bool)> {
+) -> syn::Result<(TokenStream, TokenStream, TokenStream, bool)> {
     let field = &fields[field_index];
 
     // Guard: `meta =` is only valid on external wrappers (FieldShape::Plain
     // on a non-built-in type). Reject it on all built-in shapes up front.
-    if let Some(arg) = field.args.iter().find(|a| matches!(a, AccountArg::KeyMeta { .. })) {
+    if let Some(arg) = field
+        .args
+        .iter()
+        .find(|a| matches!(a, AccountArg::KeyMeta { .. }))
+    {
         if crate::registry::is_known_wrapper(&field.ty) {
             return Err(syn::Error::new(
                 arg.key().span(),
@@ -263,20 +276,18 @@ pub fn resolve_meta(
             ));
         }
     }
- 
+
     match detect_shape(&field.ty) {
-        FieldShape::Plain => {
-            match crate::attributes::meta::extract_meta_expr(&field.args) {
-                Some(expr) => Ok((quote! { #expr }, quote! {}, false)),
-                None       => Ok((quote! { NoMeta }, quote! {}, false)),
-            }
-        }
- 
+        FieldShape::Plain => match crate::attributes::meta::extract_meta_expr(&field.args) {
+            Some(expr) => Ok((quote! { #expr }, quote! {}, quote! {}, false)),
+            None => Ok((quote! { NoMeta }, quote! {}, quote! {}, false)),
+        },
+
         FieldShape::Pda => {
             let (meta, needs_find_bump) = pda_meta(field, field_index, fields)?;
-            Ok((meta, quote! {}, needs_find_bump))
+            Ok((meta, quote! {}, quote! {}, needs_find_bump))
         }
- 
+
         FieldShape::Init => {
             let payer = require_payer(field)?;
             if is_spl_token_init(field) {
@@ -286,24 +297,26 @@ pub fn resolve_meta(
                 let assertion = spl_account_assert(inner_t);
                 Ok((
                     quote! {
-                        ::hayabusa::spl::token::state::token_account::__TokenAccountInitMeta {
-                            payer: #payer.clone(),
-                            mint:  #mint.clone(),
+                        ::hayabusa_spl_token::state::token_account::__TokenAccountInitMeta {
+                            payer: &#payer,
+                            mint:  &#mint,
                             owner: #owner.address(),
                         }
                     },
                     assertion,
+                    quote! {},
                     false,
                 ))
             } else {
                 Ok((
-                    quote! { __AccountInitMeta { payer: #payer.clone() } },
+                    quote! { __AccountInitMeta { payer: &#payer } },
+                    quote! {},
                     quote! {},
                     false,
                 ))
             }
         }
- 
+
         FieldShape::InitPda => {
             let payer = require_payer(field)?;
             if is_spl_token_init(field) {
@@ -313,39 +326,40 @@ pub fn resolve_meta(
                 let assertion = spl_account_assert(inner_t);
                 Ok((
                     quote! {
-                        ::hayabusa::spl::token::state::__TokenAccountPdaInitMeta::new(
-                            #payer.clone(),
-                            #mint.clone(),
-                            #owner.address(),
+                        ::hayabusa_spl_token::state::token_account::__TokenAccountPdaInitMeta::new(
+                            &#payer,
+                            &#mint,
+                            &#owner,
                             __cpi_signer,
                             __bump_ref,
                         )
                     },
                     assertion,
+                    quote! {},
                     false,
                 ))
             } else {
-                let (bump_ts, seed_elems) = pda_init_meta(field)?;
+                let (bump_ts, signer_ts) = pda_init_meta(field)?;
                 Ok((
                     quote! {
-                        ::hayabusa::traits::__PdaAccountInitMeta::new(
-                            #payer.clone(),
-                            CpiSigner::from(&seeds!(#(#seed_elems),*)),
-                            #bump_ts,
+                        ::hayabusa::prelude::__AccountPdaInitMeta::new(
+                            &#payer,
+                            ::hayabusa::prelude::SignerBumpness::without(__growable_signer, #bump_ts),
                         )
                     },
                     quote! {},
+                    signer_ts,
                     true,
                 ))
             }
         }
     }
 }
- 
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
- 
+
 fn require_payer(field: &AccountField) -> syn::Result<&syn::Ident> {
     extract_payer(&field.args).ok_or_else(|| {
         syn::Error::new(
@@ -354,9 +368,11 @@ fn require_payer(field: &AccountField) -> syn::Result<&syn::Ident> {
         )
     })
 }
- 
+
 fn require_arg<'f>(field: &'f AccountField, key: &str) -> syn::Result<&'f syn::Ident> {
-    field.args.iter()
+    field
+        .args
+        .iter()
         .find(|a| a.key() == key)
         .and_then(|a| a.as_ident_value())
         .ok_or_else(|| {
@@ -366,7 +382,7 @@ fn require_arg<'f>(field: &'f AccountField, key: &str) -> syn::Result<&'f syn::I
             )
         })
 }
- 
+
 fn require_inner_t(field: &AccountField) -> syn::Result<&Type> {
     extract_inner_t(&field.ty).ok_or_else(|| {
         syn::Error::new(

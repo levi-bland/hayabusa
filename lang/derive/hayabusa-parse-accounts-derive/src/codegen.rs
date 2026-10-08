@@ -113,13 +113,15 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
             let ident = &field.ident;
             let ty = &field.ty;
             let view_ident = format_ident!("{}_view", ident);
-            let (meta, extra, needs_find_bump) = resolve_meta(&account_fields, idx)?;
+            let (meta, extra, preceding_exprs, needs_find_bump) =
+                resolve_meta(&account_fields, idx)?;
             extra_items.push(extra);
             if needs_find_bump {
                 find_bump_fields.push(ident);
             }
 
             let mut stmts = quote! {
+                #preceding_exprs
                 let #ident: #ty = <#ty as ParseAccount<'_>>::parse(#view_ident, &mut #meta)?;
             };
 
@@ -152,7 +154,9 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
         });
         // Fields whose meta expressions already produced a `__cast_<field>`
         // binding during construction reuse it instead of rebinding.
-        if needs && !cast_fields.contains(&field.ident.to_string()) && cast_emitted.insert(field_index)
+        if needs
+            && !cast_fields.contains(&field.ident.to_string())
+            && cast_emitted.insert(field_index)
         {
             let ident = &field.ident;
             let cast_ident = format_ident!("__cast_{}", ident);
@@ -275,4 +279,3 @@ pub fn expand(input: DeriveInput) -> Result<TokenStream> {
         }
     })
 }
-

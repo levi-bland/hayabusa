@@ -24,8 +24,8 @@ pub fn derive_discriminator(input: TokenStream) -> TokenStream {
 
     TokenStream::from(quote! {
         #[automatically_derived]
-        impl #impl_generics ::hayabusa::traits::Discriminator for #name #ty_generics #where_clause {
-            const DISCRIMINATOR: &[u8; 8] = &[#(#discriminator),*];
+        impl #impl_generics ::hayabusa::prelude::Discriminator for #name #ty_generics #where_clause {
+            const DISCRIMINATOR: &[u8] = &[#(#discriminator),*];
         }
     })
 }

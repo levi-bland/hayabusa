@@ -7,10 +7,8 @@ use core::{
     slice::from_raw_parts,
 };
 
-use crate::{
-    account_view::{RuntimeAccount, MAX_PERMITTED_DATA_INCREASE},
-    prelude::*,
-};
+use crate::prelude::*;
+use hayabusa_common::account_view::{RuntimeAccount, MAX_PERMITTED_DATA_INCREASE};
 
 /// `assert_eq(core::mem::align_of::<u128>(), 8)` is true for BPF but not
 /// for some host machines.

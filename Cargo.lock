@@ -191,9 +191,11 @@ dependencies = [
  "borsh-derive",
  "bytemuck",
  "hayabusa-account-attribute",
+ "hayabusa-common",
  "hayabusa-discriminator-derive",
  "hayabusa-err-macro",
  "hayabusa-impl-dyn-account-macro",
+ "hayabusa-invoke-cpi-macros",
  "hayabusa-parse-accounts-derive",
  "hayabusa-program-attribute",
  "pinocchio-log",
@@ -212,12 +214,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "hayabusa-common"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "hayabusa-err-macro",
+ "hayabusa-invoke-cpi-macros",
+ "pinocchio-log",
+ "solana-address",
+ "solana-define-syscall 5.1.0",
+ "solana-program-error",
+]
+
+[[package]]
 name = "hayabusa-discriminator-derive"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
  "sha2",
+ "syn 2.0.117",
+]
+
+[[package]]
+name = "hayabusa-enum-account-dispatch-derive"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
  "syn 2.0.117",
 ]
 
@@ -232,6 +256,15 @@ dependencies = [
 
 [[package]]
 name = "hayabusa-impl-dyn-account-macro"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
+name = "hayabusa-invoke-cpi-macros"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",
@@ -256,6 +289,26 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.117",
+]
+
+[[package]]
+name = "hayabusa-spl-token"
+version = "0.1.0"
+dependencies = [
+ "hayabusa-common",
+ "hayabusa-err-macro",
+ "hayabusa-invoke-cpi-macros",
+ "hayabusa-spl-token-common",
+ "solana-program-error",
+]
+
+[[package]]
+name = "hayabusa-spl-token-common"
+version = "0.1.0"
+dependencies = [
+ "hayabusa-common",
+ "hayabusa-invoke-cpi-macros",
+ "solana-program-error",
 ]
 
 [[package]]

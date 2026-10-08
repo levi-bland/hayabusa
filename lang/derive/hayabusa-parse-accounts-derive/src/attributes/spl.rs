@@ -4,12 +4,12 @@
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::Type;
- 
+
 use crate::attributes::{AccountArg, AttributeHandler, HandlerRole};
- 
+
 pub struct MintHandler;
 pub struct OwnerHandler;
- 
+
 /// Implement trivially for `mint =` and `owner =` — they carry no
 /// independent behaviour.  All SPL-specific logic (meta construction +
 /// the `SplAccount` assertion) lives in `meta::resolve_meta`, which
@@ -20,14 +20,14 @@ macro_rules! passthrough_handler {
             fn key(&self) -> &'static str {
                 $key
             }
- 
+
             fn role(&self) -> HandlerRole {
                 HandlerRole {
-                    builds_meta: true,   // participates in meta construction
+                    builds_meta: true, // participates in meta construction
                     emits_constraint: false,
                 }
             }
- 
+
             // No ordering dependency — the referenced field just needs to
             // exist, not be constructed first.  (mint/owner are read-only
             // references, not cloned accounts that must be live.)
@@ -37,14 +37,14 @@ macro_rules! passthrough_handler {
         }
     };
 }
- 
-passthrough_handler!(MintHandler,  "mint");
+
+passthrough_handler!(MintHandler, "mint");
 passthrough_handler!(OwnerHandler, "owner");
- 
+
 // ---------------------------------------------------------------------------
 // Assertion helper — called by meta::resolve_meta
 // ---------------------------------------------------------------------------
- 
+
 /// Emit a `const _` block that fails at compile time if `inner_t` does not
 /// implement `::hayabusa::SplAccount`.
 ///
@@ -57,7 +57,7 @@ passthrough_handler!(OwnerHandler, "owner");
 pub fn spl_account_assert(inner_t: &Type) -> TokenStream {
     quote! {
         const _: () = {
-            const fn __assert_spl_account<__T: ::hayabusa::traits::__SplAccountMarker>() {}
+            const fn __assert_spl_account<__T: ::hayabusa::prelude::__SplAccountMarker>() {}
             __assert_spl_account::<#inner_t>();
         };
     }

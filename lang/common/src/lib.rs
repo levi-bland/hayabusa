@@ -1,0 +1,58 @@
+// Copyright (c) 2026, Levi Bland <levi.bland@icloud.com>
+// SPDX-License-Identifier: Apache-2.0
+
+#![no_std]
+#![allow(unexpected_cfgs)]
+
+pub mod account_iter;
+pub mod account_meta;
+pub mod account_view;
+pub mod accounts;
+pub mod address;
+pub mod cpi;
+pub mod error;
+pub mod syscalls;
+pub mod system_program;
+pub mod sysvars;
+pub mod traits;
+pub mod vec;
+
+pub use solana_define_syscall;
+pub use solana_program_error::ProgramError;
+pub type Result<T> = core::result::Result<T, solana_program_error::ProgramError>;
+
+/// Module with functions to provide hints to the compiler about how code
+/// should be optimized.
+pub mod hint {
+    /// A "dummy" function with a hint to the compiler that it is unlikely to be
+    /// called.
+    ///
+    /// This function is used as a hint to the compiler to optimize other code paths
+    /// instead of the one where the function is used.
+    #[cold]
+    pub const fn cold_path() {}
+
+    /// Return the given `bool` value with a hint to the compiler that `true` is the
+    /// likely case.
+    #[inline(always)]
+    pub const fn likely(b: bool) -> bool {
+        if b {
+            true
+        } else {
+            cold_path();
+            false
+        }
+    }
+
+    /// Return a given `bool` value with a hint to the compiler that `false` is the
+    /// likely case.
+    #[inline(always)]
+    pub const fn unlikely(b: bool) -> bool {
+        if b {
+            cold_path();
+            true
+        } else {
+            false
+        }
+    }
+}

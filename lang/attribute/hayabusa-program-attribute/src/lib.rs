@@ -62,7 +62,7 @@ fn expand_program(module: ItemMod) -> Result<proc_macro2::TokenStream> {
                     return Err(ProgramError::IncorrectProgramId);
                 }
 
-                const DISC_LEN: usize = core::mem::size_of::<[u8; 8]>();
+                const DISC_LEN: usize = 8;
 
                 if hint::unlikely(ix_data.len() < DISC_LEN) {
                     return Err(ProgramError::InvalidInstructionData);
@@ -70,7 +70,7 @@ fn expand_program(module: ItemMod) -> Result<proc_macro2::TokenStream> {
 
                 let (disc, rest) = {
                     let ptr = ix_data.as_ptr();
-                    (unsafe { &*(ptr as *const [u8; 8]) }, &ix_data[DISC_LEN..])
+                    (&ix_data[..DISC_LEN], &ix_data[DISC_LEN..])
                 };
 
                 match disc {

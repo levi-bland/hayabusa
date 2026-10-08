@@ -5,13 +5,13 @@ extern crate core;
 use core::prelude::rust_2021::*;
 use hayabusa::prelude::*;
 /// The program ID.
-pub const ID: ::hayabusa::prelude::Address = Address::new(
+pub const ID: &'static ::hayabusa_common::address::Address = &Address::new(
     ::solana_address::Address::from_str_const(
         "HPoDm7Kf63B6TpFKV7S8YSd7sGde6sVdztiDBEVkfuxz",
     ),
 );
 /// Returns the program ID.
-pub const fn id() -> ::hayabusa::prelude::Address {
+pub const fn id() -> &'static ::hayabusa_common::address::Address {
     ID
 }
 pub mod instruction {
@@ -22,8 +22,8 @@ pub mod instruction {
         pub num: u64,
     }
     #[automatically_derived]
-    impl ::hayabusa::traits::Discriminator for InitializeCounterIx {
-        const DISCRIMINATOR: &[u8; 8] = &[
+    impl ::hayabusa::prelude::Discriminator for InitializeCounterIx {
+        const DISCRIMINATOR: &[u8] = &[
             23u8, 153u8, 241u8, 67u8, 150u8, 141u8, 56u8, 133u8,
         ];
     }
@@ -53,10 +53,8 @@ pub mod instruction {
     #[discriminator(namespace = "instruction")]
     pub struct IncrementCounterIx {}
     #[automatically_derived]
-    impl ::hayabusa::traits::Discriminator for IncrementCounterIx {
-        const DISCRIMINATOR: &[u8; 8] = &[
-            133u8, 59u8, 94u8, 72u8, 5u8, 232u8, 164u8, 85u8,
-        ];
+    impl ::hayabusa::prelude::Discriminator for IncrementCounterIx {
+        const DISCRIMINATOR: &[u8] = &[133u8, 59u8, 94u8, 72u8, 5u8, 232u8, 164u8, 85u8];
     }
     #[automatically_derived]
     impl ::hayabusa::prelude::borsh::de::BorshDeserialize for IncrementCounterIx {
@@ -96,13 +94,13 @@ mod counter_program {
         if hint::unlikely(!address_eq(program_id, &crate::ID)) {
             return Err(ProgramError::IncorrectProgramId);
         }
-        const DISC_LEN: usize = core::mem::size_of::<[u8; 8]>();
+        const DISC_LEN: usize = 8;
         if hint::unlikely(ix_data.len() < DISC_LEN) {
             return Err(ProgramError::InvalidInstructionData);
         }
         let (disc, rest) = {
             let ptr = ix_data.as_ptr();
-            (unsafe { &*(ptr as *const [u8; 8]) }, &ix_data[DISC_LEN..])
+            (&ix_data[..DISC_LEN], &ix_data[DISC_LEN..])
         };
         match disc {
             <InitializeCounterIx as Discriminator>::DISCRIMINATOR => {
@@ -201,21 +199,27 @@ impl<'view> ParseAccounts<'view, InitializeCounterBumps> for InitializeCounter<'
             'view,
             System,
         > as ParseAccount<'_>>::parse(system_program_view, &mut NoMeta)?;
+        let mut __seeds_buffer = [
+            ::hayabusa_common::cpi::Seed::from(Counter::SEED),
+            ::hayabusa_common::cpi::Seed::from(signer.address().as_ref()),
+            ::hayabusa_common::cpi::Seed::from(::hayabusa::prelude::Seed::from(&[][..])),
+        ];
+        let __growable_signer = ::hayabusa::prelude::GrowableSigner::try_new(
+            &mut __seeds_buffer,
+            2usize,
+        )?;
         let counter: Init<Pda<Account<'view, Counter>>> = <Init<
             Pda<Account<'view, Counter>>,
         > as ParseAccount<
             '_,
         >>::parse(
             counter_view,
-            &mut ::hayabusa::traits::__PdaAccountInitMeta::new(
-                signer.clone(),
-                CpiSigner::from(
-                    &[
-                        ::hayabusa::cpi::Seed::from(Counter::SEED),
-                        ::hayabusa::cpi::Seed::from(signer.address().as_ref()),
-                    ],
+            &mut ::hayabusa::prelude::__AccountPdaInitMeta::new(
+                &signer,
+                ::hayabusa::prelude::SignerBumpness::without(
+                    __growable_signer,
+                    Some(&mut bumps.counter),
                 ),
-                &mut bumps.counter,
             ),
         )?;
         Ok(Self {
@@ -260,7 +264,7 @@ impl<'view> ParseAccounts<'view, ()> for IncrementCounter<'view> {
             '_,
         >>::parse(
             counter_view,
-            &mut ::hayabusa::accounts::pda::__PdaByteSliceMeta::new(
+            &mut ::hayabusa::prelude::__PdaByteSliceMeta::new(
                 &[
                     Counter::SEED,
                     authority.address().as_ref(),
@@ -270,7 +274,9 @@ impl<'view> ParseAccounts<'view, ()> for IncrementCounter<'view> {
             ),
         )?;
         let __cast_counter = unsafe { counter.cast_untracked() };
-        if ::hayabusa::hint::unlikely(authority.address() != &__cast_counter.authority) {
+        if ::hayabusa::prelude::hint::unlikely(
+            authority.address() != &__cast_counter.authority,
+        ) {
             return Err(::hayabusa::prelude::ErrorCode::InvalidAccount.into());
         }
         Ok(Self { authority, counter })
@@ -359,10 +365,8 @@ const _: fn() = || {
 };
 unsafe impl ::hayabusa::prelude::bytemuck::Zeroable for Counter {}
 #[automatically_derived]
-impl ::hayabusa::traits::Discriminator for Counter {
-    const DISCRIMINATOR: &[u8; 8] = &[
-        255u8, 176u8, 4u8, 245u8, 188u8, 253u8, 124u8, 25u8,
-    ];
+impl ::hayabusa::prelude::Discriminator for Counter {
+    const DISCRIMINATOR: &[u8] = &[255u8, 176u8, 4u8, 245u8, 188u8, 253u8, 124u8, 25u8];
 }
 #[automatically_derived]
 impl ::core::marker::Copy for Counter {}
@@ -384,16 +388,98 @@ impl Counter {
     pub const SEED: &[u8] = "counter".as_bytes();
 }
 #[automatically_derived]
-impl BumpOffset for Counter {
-    const BUMP_OFFSET: usize = const { builtin # offset_of(Counter, bump) };
-}
-#[automatically_derived]
 impl Owner for Counter {
-    const OWNER: Address = crate::ID;
+    const OWNER: &'static Address = crate::ID;
 }
 #[automatically_derived]
-impl ::hayabusa::traits::internal::__AccountDiscriminatorMode for Counter {
-    type Mode = ::hayabusa::traits::internal::__WithDiscriminator;
+unsafe impl ::hayabusa::prelude::__AccountDiscriminatorMode for Counter {
+    type Mode = __WithDiscriminator;
 }
 #[automatically_derived]
 unsafe impl __AccountMarker for Counter {}
+#[automatically_derived]
+unsafe impl ::hayabusa::prelude::Ownership for Counter {
+    type OwnerType = ::hayabusa::prelude::__Owner;
+    #[inline(always)]
+    fn check_ownership(view: AccountView<'_>) -> Result<()> {
+        Self::check_owner(view)
+    }
+}
+#[automatically_derived]
+impl<'view> ::hayabusa::prelude::AccountInit<'view> for Counter {
+    type Meta<'a> = ::hayabusa::prelude::__AccountInitMeta<'view, 'a> where 'view: 'a;
+    type PdaMeta<'a, 'b, 'c> = ::hayabusa::prelude::__AccountPdaInitMeta<
+        'view,
+        'a,
+        'b,
+        'c,
+    >
+    where
+        'view: 'c,
+        'c: 'b,
+        'b: 'a;
+    #[inline(never)]
+    fn init<'a>(view: AccountView<'view>, meta: &Self::Meta<'a>) -> Result<()>
+    where
+        'view: 'a,
+    {
+        let _: ::hayabusa::prelude::Signer<'view> = <::hayabusa::prelude::Signer as ::hayabusa::prelude::ParseAccount<
+            'view,
+        >>::parse(view, &mut ::hayabusa::prelude::NoMeta)?;
+        ::hayabusa::prelude::create_or_allocate_account(
+            view,
+            meta.payer.to_account_view(),
+            crate::ID,
+            Self::SPACE,
+        )?;
+        let mut borrow = view.try_borrow_mut()?;
+        let disc_bytes = &mut borrow[..Self::DISCRIMINATOR.len()];
+        disc_bytes.copy_from_slice(Self::DISCRIMINATOR);
+        Ok(())
+    }
+    #[inline(never)]
+    fn init_pda<'a, 'b, 'c>(
+        view: AccountView<'view>,
+        meta: &mut Self::PdaMeta<'a, 'b, 'c>,
+    ) -> Result<()>
+    where
+        'view: 'c,
+        'c: 'b,
+        'b: 'a,
+    {
+        match &mut meta.signer {
+            ::hayabusa::prelude::SignerBumpness::With(signer) => {
+                ::hayabusa::prelude::create_or_allocate_pda(
+                    meta.payer.to_account_view(),
+                    view,
+                    crate::ID,
+                    &[*signer],
+                    Self::SPACE,
+                )?;
+            }
+            ::hayabusa::prelude::SignerBumpness::Without(signer, bump_slot) => {
+                let (_, bump) = ::hayabusa::prelude::try_find_program_address(
+                    signer.as_slice_of_slices(),
+                    crate::ID,
+                )?;
+                let slot: &'c mut u8 = bump_slot
+                    .take()
+                    .ok_or(ErrorCode::MetaAlreadyConsumed)?;
+                *slot = bump;
+                let bump_ref: &'c u8 = slot;
+                signer.push(Seed::from(core::slice::from_ref(bump_ref)))?;
+                ::hayabusa::prelude::create_or_allocate_pda(
+                    meta.payer.to_account_view(),
+                    view,
+                    crate::ID,
+                    &[signer.as_signer()],
+                    Self::SPACE,
+                )?;
+            }
+        }
+        let mut borrow = view.try_borrow_mut()?;
+        let disc_bytes = &mut borrow[..Self::DISCRIMINATOR.len()];
+        disc_bytes.copy_from_slice(Self::DISCRIMINATOR);
+        Ok(())
+    }
+}

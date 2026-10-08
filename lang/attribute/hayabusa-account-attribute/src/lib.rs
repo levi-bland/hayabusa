@@ -3,7 +3,7 @@
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, Attribute, Fields, Ident, ItemStruct, LitStr, Result};
+use syn::{parse_macro_input, Attribute, ItemStruct, LitStr, Result};
 
 #[proc_macro_attribute]
 pub fn account(attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -83,7 +83,6 @@ fn expand_account(input: ItemStruct) -> Result<proc_macro2::TokenStream> {
 
     let preserved_struct_attrs = strip_account_attr(&attrs);
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-    let bump_offset_impl = derive_bump_offset(ident.clone(), fields.clone());
 
     Ok(quote! {
         #(#preserved_struct_attrs)*
@@ -98,32 +97,79 @@ fn expand_account(input: ItemStruct) -> Result<proc_macro2::TokenStream> {
         #[bytemuck(crate = "::hayabusa::prelude::bytemuck")]
         #vis struct #ident #ty_generics #fields #where_clause
 
-        #bump_offset_impl
-
         #[automatically_derived]
         impl #impl_generics Owner for #ident #ty_generics #where_clause {
-            const OWNER: Address = crate::ID;
+            const OWNER: &'static Address = crate::ID;
         }
 
         #[automatically_derived]
-        impl #impl_generics ::hayabusa::traits::internal::__AccountDiscriminatorMode for #ident #ty_generics #where_clause {
-            type Mode = ::hayabusa::traits::internal::__WithDiscriminator;
+        unsafe impl #impl_generics ::hayabusa::prelude::__AccountDiscriminatorMode for #ident #ty_generics #where_clause {
+            type Mode = __WithDiscriminator;
         }
 
         #[automatically_derived]
         unsafe impl #impl_generics __AccountMarker for #ident #ty_generics #where_clause {}
-    })
-}
 
-fn derive_bump_offset(name: Ident, fields: Fields) -> Option<proc_macro2::TokenStream> {
-    let _bump_field = fields
-        .iter()
-        .find(|f| f.ident.as_ref().is_some_and(|id| id == "bump"))?;
-
-    Some(quote! {
         #[automatically_derived]
-        impl BumpOffset for #name {
-            const BUMP_OFFSET: usize = ::core::mem::offset_of!(#name, bump);
+        unsafe impl #impl_generics ::hayabusa::prelude::Ownership for #ident #ty_generics #where_clause {
+            type OwnerType = ::hayabusa::prelude::__Owner;
+
+            #[inline(always)]
+            fn check_ownership(view: AccountView<'_>) -> Result<()> {
+                Self::check_owner(view)
+            }
+        }
+
+        #[automatically_derived]
+        impl<'view> #impl_generics ::hayabusa::prelude::AccountInit<'view> for #ident #ty_generics #where_clause {
+            type Meta<'a> = ::hayabusa::prelude::__AccountInitMeta<'view, 'a> where 'view: 'a;
+            type PdaMeta<'a, 'b, 'c> = ::hayabusa::prelude::__AccountPdaInitMeta<'view, 'a, 'b, 'c> where 'view: 'c, 'c: 'b, 'b: 'a;
+
+            #[inline(never)]
+            fn init<'a>(view: AccountView<'view>, meta: &Self::Meta<'a>) -> Result<()>
+            where
+                'view: 'a,
+            {
+                let _: ::hayabusa::prelude::Signer<'view> = <::hayabusa::prelude::Signer as ::hayabusa::prelude::ParseAccount<'view>>::parse(view, &mut ::hayabusa::prelude::NoMeta)?;
+
+                ::hayabusa::prelude::create_or_allocate_account(view, meta.payer.to_account_view(), crate::ID, Self::SPACE)?;
+
+                let mut borrow = view.try_borrow_mut()?;
+                let disc_bytes = &mut borrow[..Self::DISCRIMINATOR.len()];
+                disc_bytes.copy_from_slice(Self::DISCRIMINATOR);
+
+                Ok(())
+            }
+
+            #[inline(never)]
+            fn init_pda<'a, 'b, 'c>(view: AccountView<'view>, meta: &mut Self::PdaMeta<'a, 'b, 'c>) -> Result<()>
+            where
+                'view: 'c,
+                'c: 'b,
+                'b: 'a,
+            {
+                match &mut meta.signer {
+                    ::hayabusa::prelude::SignerBumpness::With(signer) => {
+                        ::hayabusa::prelude::create_or_allocate_pda(meta.payer.to_account_view(), view, crate::ID, &[*signer], Self::SPACE)?;
+                    }
+                    ::hayabusa::prelude::SignerBumpness::Without(signer, bump_slot) => {
+                        let (_, bump) = ::hayabusa::prelude::try_find_program_address(signer.as_slice_of_slices(), crate::ID)?;
+
+                        let slot: &'c mut u8 = bump_slot.take().ok_or(ErrorCode::MetaAlreadyConsumed)?;
+                        *slot = bump;
+                        let bump_ref: &'c u8 = slot; // move the &mut, downgrade to shared for all of 'c
+                        signer.push(Seed::from(core::slice::from_ref(bump_ref)))?; // 'c: 'b, so it coerces
+
+                        ::hayabusa::prelude::create_or_allocate_pda(meta.payer.to_account_view(), view, crate::ID, &[signer.as_signer()], Self::SPACE)?;
+                    }
+                }
+
+                let mut borrow = view.try_borrow_mut()?;
+                let disc_bytes = &mut borrow[..Self::DISCRIMINATOR.len()];
+                disc_bytes.copy_from_slice(Self::DISCRIMINATOR);
+
+                Ok(())
+            }
         }
     })
 }

@@ -11,7 +11,10 @@ no-entrypoint = []
 idl-build = ["hayabusa/idl-build"]
 
 [dependencies]
-hayabusa = { path = "../../lang/", features = ["bpf"] }
+hayabusa = { path = "../../lang/", features = [
+    "bpf",
+    "alloc",
+], default-features = false }
 
 [profile.release]
 lto = true

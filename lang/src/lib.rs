@@ -6,22 +6,12 @@
 
 pub mod account_meta;
 pub mod account_view;
-#[cfg(feature = "bpf")]
-pub mod accounts;
-pub mod address;
-pub mod cpi;
 pub mod ctx;
 #[cfg(all(feature = "bpf", not(feature = "no-entrypoint")))]
 pub mod entrypoint;
 pub mod error;
 pub mod prelude;
-#[cfg(feature = "spl")]
-pub mod spl;
 pub mod syscalls;
-pub mod system_program;
-pub mod sysvars;
-pub mod traits;
-pub mod vec;
 
 pub type Result<T> = core::result::Result<T, solana_program_error::ProgramError>;
 

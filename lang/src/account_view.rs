@@ -95,7 +95,7 @@ pub struct RuntimeAccount {
 pub struct AccountView<'view> {
     /// Raw (pointer to) account data.
     ///
-    /// Note that this is a pointer can be shared across multiple `AccountView`.
+    /// Note that this is a pointer can be shared across multiple [`AccountView`].
     raw: *mut RuntimeAccount,
     __phantom: PhantomData<&'view mut RuntimeAccount>,
 }
@@ -106,7 +106,7 @@ impl<'view> AccountView<'view> {
     /// # Safety
     ///
     /// The caller must ensure that the `raw` pointer is valid and points
-    /// to memory containing a `RuntimeAccount` struct, immediately followed by
+    /// to memory containing a [`RuntimeAccount`] struct, immediately followed by
     /// the account's data region.
     #[inline(always)]
     pub unsafe fn new_unchecked(raw: *mut RuntimeAccount) -> Self {
@@ -128,16 +128,22 @@ impl<'view> AccountView<'view> {
     /// For ownership checks, it is recommended to use the [`Self::owned_by`]
     /// method instead.
     ///
-    /// # Important
+    /// # Safety
     ///
     /// This method returns a reference to the owner field of the account, which
     /// can be modified by programs using [`Self::assign`]. It is the caller's
     /// responsibility to ensure that this reference is not used after the
     /// account owner has been changed.
     #[inline(always)]
-    pub fn owner(&self) -> &'view Address {
+    pub unsafe fn owner(&self) -> &'view Address {
         // SAFETY: The `raw` pointer is guaranteed to be valid.
-        unsafe { &(*self.raw).owner }
+        &(*self.raw).owner
+    }
+
+    #[inline(always)]
+    pub fn owner_owned(&self) -> Address {
+        // SAFETY: The `raw` pointer is guaranteed to be valid.
+        unsafe { (*self.raw).owner }
     }
 
     /// Indicate whether the transaction was signed by this account.
@@ -178,7 +184,7 @@ impl<'view> AccountView<'view> {
 
     /// Set the lamports in the account.
     #[inline(always)]
-    pub fn set_lamports(&mut self, lamports: u64) {
+    pub fn set_lamports(&self, lamports: u64) {
         // SAFETY: The `raw` pointer is guaranteed to be valid.
         unsafe {
             (*self.raw).lamports = lamports;
@@ -209,7 +215,7 @@ impl<'view> AccountView<'view> {
     /// to the `owner` returned by [`Self::owner`].
     #[allow(clippy::clone_on_copy)]
     #[inline(always)]
-    pub unsafe fn assign(&mut self, new_owner: &Address) {
+    pub unsafe fn assign(&self, new_owner: &Address) {
         write(addr_of_mut!((*self.raw).owner), new_owner.clone());
     }
 
@@ -363,7 +369,7 @@ impl<'view> AccountView<'view> {
     }
 
     /// Returns a mutable raw pointer to the `RuntimeAccount` struct.
-    pub fn account_mut_ptr(&mut self) -> *mut RuntimeAccount {
+    pub fn account_mut_ptr(&self) -> *mut RuntimeAccount {
         self.raw
     }
 

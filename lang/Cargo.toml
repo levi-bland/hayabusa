@@ -2,7 +2,7 @@
 name = "hayabusa"
 version.workspace = true
 publish = true
-authors = ["Levi Bland <levi@arcane.fi>"]
+authors = ["Levi Bland <levi.bland@icloud.com>"]
 edition = "2021"
 license = "Apache-2.0"
 description = "Lightweight Solana eDSL/Framework"
@@ -18,18 +18,26 @@ unsafe-account-derefs = []
 bpf = []
 alloc = []
 debug-logs = []
+spl-token = ["spl"]
+spl-token2022 = ["spl"]
 
 [dependencies]
 borsh.workspace = true
 borsh-derive.workspace = true
 bytemuck = { workspace = true, features = ["derive"] }
 pinocchio-log.workspace = true
-solana-address = { workspace = true, features = ["decode", "curve25519", "copy"] }
+solana-address = { workspace = true, features = [
+    "decode",
+    "curve25519",
+    "copy",
+] }
 solana-program-error.workspace = true
 solana-define-syscall.workspace = true
+hayabusa-common.workspace = true
 hayabusa-err-macro.workspace = true
 hayabusa-account-attribute.workspace = true
 hayabusa-discriminator-derive.workspace = true
 hayabusa-impl-dyn-account-macro.workspace = true
 hayabusa-program-attribute.workspace = true
 hayabusa-parse-accounts-derive.workspace = true
+hayabusa-invoke-cpi-macros.workspace = true

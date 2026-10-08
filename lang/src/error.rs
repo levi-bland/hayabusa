@@ -9,10 +9,14 @@ pub enum ErrorCode {
     BufferFull,
     InvalidAccountDiscriminator,
     AccountNotSigner,
+    AccountNotExecutable,
     InvalidAccount,
     AccountNotWritable,
+    AccountNotImmutable,
     InvalidProgram,
+    InvalidInterfaceProgram,
     InvalidSeeds,
+    MetaAlreadyConsumed,
     SyscallFailed,
     SeedsTooLong,
     TooManySeeds,
@@ -33,6 +37,10 @@ pub enum ErrorCode {
     InvalidProgramAccount,
     UnexpectedEndOfBuffer,
     InvalidUtf8,
+    Token2022ExtensionBadAccountType,
+    Token2022ExtensionLayoutMismatch,
+    Token2022ExtensionDirtyPadding,
+    Token2022ExtensionUninitializedAccount,
 }
 
 impl From<ErrorCode> for ProgramError {

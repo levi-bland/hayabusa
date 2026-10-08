@@ -3,23 +3,23 @@
 
 use proc_macro2::TokenStream;
 use quote::quote;
- 
+
 use super::{AccountArg, AttributeHandler, HandlerCtx, HandlerRole};
 
 pub struct HasOneHandler;
- 
+
 impl AttributeHandler for HasOneHandler {
     fn key(&self) -> &'static str {
         "has_one"
     }
- 
+
     fn role(&self) -> HandlerRole {
         HandlerRole {
             builds_meta: false,
             emits_constraint: true,
         }
     }
- 
+
     fn needs_field_cast(&self) -> bool {
         true
     }
@@ -40,7 +40,7 @@ impl AttributeHandler for HasOneHandler {
         let cast_ident = quote::format_ident!("__cast_{}", account_ident);
 
         Ok(quote! {
-            if ::hayabusa::hint::unlikely(
+            if ::hayabusa::prelude::hint::unlikely(
                 #sibling_ident.address() != &#cast_ident.#sibling_ident,
             ) {
                 return Err(::hayabusa::prelude::ErrorCode::InvalidAccount.into());
