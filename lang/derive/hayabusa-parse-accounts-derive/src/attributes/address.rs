@@ -22,12 +22,17 @@ impl AttributeHandler for AddressHandler {
 
     fn constraint_stmts(&self, arg: &AccountArg, ctx: &HandlerCtx) -> syn::Result<TokenStream> {
         let account_ident = &ctx.fields[ctx.field_index].ident;
-        let address_expr = arg.as_expr_value().ok_or_else(|| {
-            syn::Error::new(
+        // `address = AUTHORITY` is a single ident, parsed as KeyValue.
+        let address_expr = if let Some(expr) = arg.as_expr_value() {
+            quote! { #expr }
+        } else if let Some(ident) = arg.as_ident_value() {
+            quote! { #ident }
+        } else {
+            return Err(syn::Error::new(
                 arg.key().span(),
                 "address requires `address = <address_expr>`",
-            )
-        })?;
+            ));
+        };
 
         Ok(quote! {
             if ::hayabusa::prelude::hint::unlikely(
