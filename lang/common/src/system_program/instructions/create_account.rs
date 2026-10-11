@@ -50,26 +50,15 @@ pub const CREATE_ACCOUNT_ACCOUNTS_BUFFER_LEN: usize = 2;
 /// The discriminator of the `CreateAccount` system program instruction
 pub const CREATE_ACCOUNT_DISCRIMINATOR: [u8; 4] = [0; 4];
 
-type AccountMetaBuffer<'meta> = [AccountMeta<'meta>; CREATE_ACCOUNT_ACCOUNTS_BUFFER_LEN];
-type CpiAccountBuffer<'view> = [CpiAccount<'view>; CREATE_ACCOUNT_ACCOUNTS_BUFFER_LEN];
-type DataBuffer = [u8; CREATE_ACCOUNT_DATA_LEN];
+impl<'view> CpiSerialize<'view> for CreateAccount<'view, '_> {
+    type Metas = [AccountMeta<'view>; CREATE_ACCOUNT_ACCOUNTS_BUFFER_LEN];
+    type CpiAccounts = [CpiAccount<'view>; CREATE_ACCOUNT_ACCOUNTS_BUFFER_LEN];
+    type Data = [u8; CREATE_ACCOUNT_DATA_LEN];
 
-impl<'view> CpiSerialize<'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>
-    for CreateAccount<'view, '_>
-{
     #[inline(always)]
     fn serialize(
         &self,
-    ) -> Result<
-        CpiCtx<
-            'view,
-            'view,
-            'static,
-            AccountMetaBuffer<'view>,
-            CpiAccountBuffer<'view>,
-            DataBuffer,
-        >,
-    > {
+    ) -> Result<CpiCtx<'view, 'view, 'static, Self::Metas, Self::CpiAccounts, Self::Data>> {
         let lamports = crate::system_program::minimum_balance(self.space as usize)?;
 
         // ix data layout
@@ -81,7 +70,7 @@ impl<'view> CpiSerialize<'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view
         // SAFETY: all 52 bytes are initialized before `assume_init`,
         //         `Address` is guaranteed to be 32 bytes.
         let data = unsafe {
-            let mut buf = MaybeUninit::<DataBuffer>::uninit();
+            let mut buf = MaybeUninit::<Self::Data>::uninit();
             let ptr = buf.as_mut_ptr() as *mut u8;
             (ptr as *mut [u8; 4]).write_unaligned(CREATE_ACCOUNT_DISCRIMINATOR);
             (ptr.add(4) as *mut u64).write_unaligned(lamports);
@@ -95,7 +84,7 @@ impl<'view> CpiSerialize<'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view
 
         // SAFETY: buffer is fully initialized before `assume_init`.
         let metas = unsafe {
-            let mut buf = MaybeUninit::<AccountMetaBuffer>::uninit();
+            let mut buf = MaybeUninit::<Self::Metas>::uninit();
             let ptr = buf.as_mut_ptr() as *mut AccountMeta;
             ptr.write(AccountMeta::writable_signer(self.from.address()));
             ptr.add(1)

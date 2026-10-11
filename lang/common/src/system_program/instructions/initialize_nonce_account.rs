@@ -45,33 +45,22 @@ pub const INITIALIZE_NONCE_ACCOUNT_DATA_LEN: usize = 36;
 /// The discriminator of the `InitializeNonceAccount` system program instruction.
 pub const INITIALIZE_NONCE_ACCOUNT_DISCRIMINATOR: [u8; 4] = [6, 0, 0, 0];
 
-type AccountMetaBuffer<'meta> = [AccountMeta<'meta>; INITIALIZE_NONCE_ACCOUNT_ACCOUNTS_BUFFER_LEN];
-type CpiAccountBuffer<'view> = [CpiAccount<'view>; INITIALIZE_NONCE_ACCOUNT_ACCOUNTS_BUFFER_LEN];
-type DataBuffer = [u8; INITIALIZE_NONCE_ACCOUNT_DATA_LEN];
+impl<'view> CpiSerialize<'view> for InitializeNonceAccount<'view, '_> {
+    type Metas = [AccountMeta<'view>; INITIALIZE_NONCE_ACCOUNT_ACCOUNTS_BUFFER_LEN];
+    type CpiAccounts = [CpiAccount<'view>; INITIALIZE_NONCE_ACCOUNT_ACCOUNTS_BUFFER_LEN];
+    type Data = [u8; INITIALIZE_NONCE_ACCOUNT_DATA_LEN];
 
-impl<'view> CpiSerialize<'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>
-    for InitializeNonceAccount<'view, '_>
-{
     #[inline(always)]
     fn serialize(
         &self,
-    ) -> Result<
-        CpiCtx<
-            'view,
-            'view,
-            'static,
-            AccountMetaBuffer<'view>,
-            CpiAccountBuffer<'view>,
-            DataBuffer,
-        >,
-    > {
+    ) -> Result<CpiCtx<'view, 'view, 'static, Self::Metas, Self::CpiAccounts, Self::Data>> {
         // instruction data
         // - [0..4 ]: instruction discriminator
         // - [4..36]: authority address
         //
         // SAFETY: all bytes written before `assume_init`.
         let data = unsafe {
-            let mut buf = MaybeUninit::<DataBuffer>::uninit();
+            let mut buf = MaybeUninit::<Self::Data>::uninit();
             let ptr = buf.as_mut_ptr() as *mut u8;
             (ptr as *mut [u8; 4]).write_unaligned(INITIALIZE_NONCE_ACCOUNT_DISCRIMINATOR);
             copy_nonoverlapping(

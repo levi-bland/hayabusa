@@ -45,10 +45,11 @@ type AccountMetaBuffer<'meta> = [AccountMeta<'meta>; SYNC_NATIVE_ACCOUNTS_BUFFER
 type CpiAccountBuffer<'view> = [CpiAccount<'view>; SYNC_NATIVE_ACCOUNTS_BUFFER_LEN];
 type DataBuffer = [u8; SYNC_NATIVE_DATA_LEN];
 
-impl<'view, P: TokenProgram>
-    CpiSerialize<'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>
-    for SyncNative<'view, P>
-{
+impl<'view, P: TokenProgram> CpiSerialize<'view> for SyncNative<'view, P> {
+    type Metas = [AccountMeta<'view>; SYNC_NATIVE_ACCOUNTS_BUFFER_LEN];
+    type CpiAccounts = [CpiAccount<'view>; SYNC_NATIVE_ACCOUNTS_BUFFER_LEN];
+    type Data = [u8; SYNC_NATIVE_DATA_LEN];
+
     #[inline(always)]
     fn serialize(
         &self,

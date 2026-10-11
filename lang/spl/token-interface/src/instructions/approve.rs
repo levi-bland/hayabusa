@@ -36,22 +36,18 @@ pub const APPROVE_DATA_LEN: usize = 9;
 /// The [`Approve`] instruction discriminator.
 pub const APPROVE_DISCRIMINATOR: [u8; 1] = [4];
 
-type AccountMetaBuffer<'meta> = [AccountMeta<'meta>; APPROVE_ACCOUNTS_BUFFER_LEN];
-type CpiAccountBuffer<'view> = [CpiAccount<'view>; APPROVE_ACCOUNTS_BUFFER_LEN];
-type DataBuffer = [u8; APPROVE_DATA_LEN];
+impl<'view> CpiSerialize<'view> for Approve<'view> {
+    type Metas = [AccountMeta<'view>; APPROVE_ACCOUNTS_BUFFER_LEN];
+    type CpiAccounts = [CpiAccount<'view>; APPROVE_ACCOUNTS_BUFFER_LEN];
+    type Data = [u8; APPROVE_DATA_LEN];
 
-impl<'view> CpiSerialize<'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>
-    for Approve<'view>
-{
     #[inline(always)]
     fn serialize(
         &self,
-    ) -> Result<
-        CpiCtx<'view, 'view, 'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>,
-    > {
+    ) -> Result<CpiCtx<'view, 'view, 'view, Self::Metas, Self::CpiAccounts, Self::Data>> {
         // SAFETY: buffer is fully initialized before `assume_init`.
         let data = unsafe {
-            let mut buf = MaybeUninit::<DataBuffer>::uninit();
+            let mut buf = MaybeUninit::<Self::Data>::uninit();
             let ptr = buf.as_mut_ptr() as *mut u8;
             (ptr as *mut [u8; 1]).write(APPROVE_DISCRIMINATOR);
             copy_nonoverlapping(

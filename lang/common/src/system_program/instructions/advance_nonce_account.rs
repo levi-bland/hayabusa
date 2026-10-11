@@ -30,26 +30,15 @@ pub const ADVANCE_NONCE_ACCOUNT_DATA_LEN: usize = 1;
 /// The [`AdvanceNonceAccount`] system program instruction discriminator
 pub const ADVANCE_NONCE_ACCOUNT_DISCRIMINATOR: [u8; 1] = [4];
 
-type AccountMetaBuffer<'meta> = [AccountMeta<'meta>; ADVANCE_NONCE_ACCOUNT_ACCOUNTS_BUFFER_LEN];
-type CpiAccountBuffer<'view> = [CpiAccount<'view>; ADVANCE_NONCE_ACCOUNT_ACCOUNTS_BUFFER_LEN];
-type DataBuffer = [u8; ADVANCE_NONCE_ACCOUNT_DATA_LEN];
+impl<'view> CpiSerialize<'view> for AdvanceNonceAccount<'view> {
+    type Metas = [AccountMeta<'view>; ADVANCE_NONCE_ACCOUNT_ACCOUNTS_BUFFER_LEN];
+    type CpiAccounts = [CpiAccount<'view>; ADVANCE_NONCE_ACCOUNT_ACCOUNTS_BUFFER_LEN];
+    type Data = [u8; ADVANCE_NONCE_ACCOUNT_DATA_LEN];
 
-impl<'view> CpiSerialize<'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>
-    for AdvanceNonceAccount<'view>
-{
     #[inline(always)]
     fn serialize(
         &self,
-    ) -> Result<
-        CpiCtx<
-            'view,
-            'view,
-            'static,
-            AccountMetaBuffer<'view>,
-            CpiAccountBuffer<'view>,
-            DataBuffer,
-        >,
-    > {
+    ) -> Result<CpiCtx<'view, 'view, 'static, Self::Metas, Self::CpiAccounts, Self::Data>> {
         let metas = [
             AccountMeta::writable(self.account.address()),
             AccountMeta::readonly(self.recent_blockhash_sysvar.address()),

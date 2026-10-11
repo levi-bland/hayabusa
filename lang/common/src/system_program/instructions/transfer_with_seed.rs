@@ -50,27 +50,17 @@ pub const TRANSFER_WITH_SEED_DATA_BASE_LEN: usize = 52;
 /// The discriminator of the [`TransferWithSeed`] system program instruction.
 pub const TRANSFER_WITH_SEED_DISCRIMINATOR: [u8; 4] = [11, 0, 0, 0];
 
-type AccountMetaBuffer<'meta> = [AccountMeta<'meta>; TRANSFER_WITH_SEED_ACCOUNTS_BUFFER_LEN];
-type CpiAccountBuffer<'view> = [CpiAccount<'view>; TRANSFER_WITH_SEED_ACCOUNTS_BUFFER_LEN];
-type DataBuffer = StackVec<u8, TRANSFER_WITH_SEED_MAX_DATA_LEN>;
-
-impl<'view, const SEED_LEN: usize>
-    CpiSerialize<'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>
+impl<'view, const SEED_LEN: usize> CpiSerialize<'view>
     for TransferWithSeed<'view, '_, '_, SEED_LEN>
 {
+    type Metas = [AccountMeta<'view>; TRANSFER_WITH_SEED_ACCOUNTS_BUFFER_LEN];
+    type CpiAccounts = [CpiAccount<'view>; TRANSFER_WITH_SEED_ACCOUNTS_BUFFER_LEN];
+    type Data = StackVec<u8, TRANSFER_WITH_SEED_MAX_DATA_LEN>;
+
     #[inline(always)]
     fn serialize(
         &self,
-    ) -> Result<
-        CpiCtx<
-            'view,
-            'view,
-            'static,
-            AccountMetaBuffer<'view>,
-            CpiAccountBuffer<'view>,
-            DataBuffer,
-        >,
-    > {
+    ) -> Result<CpiCtx<'view, 'view, 'static, Self::Metas, Self::CpiAccounts, Self::Data>> {
         let _: () = Self::_ASSERT;
 
         // instruction data
@@ -82,7 +72,7 @@ impl<'view, const SEED_LEN: usize>
         //
         // SAFETY: we respect the `TRANSFER_WITH_SEED_MAX_DATA_LEN` bound.
         let data = unsafe {
-            let mut buf = DataBuffer::new();
+            let mut buf = Self::Data::new();
             buf.push_ptr_unchecked(
                 TRANSFER_WITH_SEED_DISCRIMINATOR.as_ptr(),
                 size_of::<[u8; 4]>(),

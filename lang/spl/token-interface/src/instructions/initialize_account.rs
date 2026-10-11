@@ -32,19 +32,15 @@ pub const INITIALIZE_ACCOUNT_DATA_LEN: usize = 1;
 /// The [`InitializeAccount`] instruction discriminator.
 pub const INITIALIZE_ACCOUNT_DISCRIMINATOR: [u8; 1] = [1];
 
-type AccountMetaBuffer<'meta> = [AccountMeta<'meta>; INITIALIZE_ACCOUNT_ACCOUNTS_BUFFER_LEN];
-type CpiAccountBuffer<'view> = [CpiAccount<'view>; INITIALIZE_ACCOUNT_ACCOUNTS_BUFFER_LEN];
-type DataBuffer = [u8; INITIALIZE_ACCOUNT_DATA_LEN];
+impl<'view> CpiSerialize<'view> for InitializeAccount<'view> {
+    type Metas = [AccountMeta<'view>; INITIALIZE_ACCOUNT_ACCOUNTS_BUFFER_LEN];
+    type CpiAccounts = [CpiAccount<'view>; INITIALIZE_ACCOUNT_ACCOUNTS_BUFFER_LEN];
+    type Data = [u8; INITIALIZE_ACCOUNT_DATA_LEN];
 
-impl<'view> CpiSerialize<'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>
-    for InitializeAccount<'view>
-{
     #[inline(always)]
     fn serialize(
         &self,
-    ) -> Result<
-        CpiCtx<'view, 'view, 'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>,
-    > {
+    ) -> Result<CpiCtx<'view, 'view, 'view, Self::Metas, Self::CpiAccounts, Self::Data>> {
         let metas = [
             AccountMeta::writable(self.account.address()),
             AccountMeta::readonly(self.mint.address()),

@@ -309,7 +309,7 @@ impl<'view> AccountInit<'view> for TokenAccount {
                 let slot: &'c mut u8 = bump_slot.take().ok_or(ErrorCode::MetaAlreadyConsumed)?;
                 *slot = bump;
                 let bump_ref: &'c u8 = slot; // move the &mut, downgrade to shared for all of 'c
-                signer.push(Seed::from(core::slice::from_ref(bump_ref))); // 'c: 'b, so it coerces
+                signer.push(Seed::from(core::slice::from_ref(bump_ref)))?; // 'c: 'b, so it coerces
 
                 create_or_allocate_pda(
                     meta.payer.to_account_view(),

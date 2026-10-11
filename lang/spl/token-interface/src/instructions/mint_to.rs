@@ -35,22 +35,18 @@ pub const MINT_TO_DATA_LEN: usize = 9;
 /// The [`MintTo`] instruction discriminator.
 pub const MINT_TO_DISCRIMINATOR: [u8; 1] = [7];
 
-type AccountMetaBuffer<'meta> = [AccountMeta<'meta>; MINT_TO_ACCOUNTS_BUFFER_LEN];
-type CpiAccountBuffer<'view> = [CpiAccount<'view>; MINT_TO_ACCOUNTS_BUFFER_LEN];
-type DataBuffer = [u8; MINT_TO_DATA_LEN];
+impl<'view> CpiSerialize<'view> for MintTo<'view> {
+    type Metas = [AccountMeta<'view>; MINT_TO_ACCOUNTS_BUFFER_LEN];
+    type CpiAccounts = [CpiAccount<'view>; MINT_TO_ACCOUNTS_BUFFER_LEN];
+    type Data = [u8; MINT_TO_DATA_LEN];
 
-impl<'view> CpiSerialize<'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>
-    for MintTo<'view>
-{
     #[inline(always)]
     fn serialize(
         &self,
-    ) -> Result<
-        CpiCtx<'view, 'view, 'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>,
-    > {
+    ) -> Result<CpiCtx<'view, 'view, 'view, Self::Metas, Self::CpiAccounts, Self::Data>> {
         // SAFETY: buffer is fully initialized before `assume_init`.
         let data = unsafe {
-            let mut buf = MaybeUninit::<DataBuffer>::uninit();
+            let mut buf = MaybeUninit::<Self::Data>::uninit();
             let ptr = buf.as_mut_ptr() as *mut u8;
             (ptr as *mut [u8; 1]).write(MINT_TO_DISCRIMINATOR);
             (ptr.add(1) as *mut [u8; 8]).write(self.amount.to_le_bytes());

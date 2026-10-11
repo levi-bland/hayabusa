@@ -41,27 +41,15 @@ pub const ASSIGN_WITH_SEED_DATA_BASE_LEN: usize = 76;
 /// The discriminator of the `AssignWithSeed` system program instruction.
 pub const ASSIGN_WITH_SEED_DISCRIMINATOR: [u8; 4] = [10, 0, 0, 0];
 
-type AccountMetaBuffer<'meta> = [AccountMeta<'meta>; ASSIGN_WITH_SEED_ACCOUNTS_BUFFER_LEN];
-type CpiAccountBuffer<'view> = [CpiAccount<'view>; ASSIGN_WITH_SEED_ACCOUNTS_BUFFER_LEN];
-type DataBuffer = StackVec<u8, ASSIGN_WITH_SEED_MAX_DATA_LEN>;
+impl<'view, const SEED_LEN: usize> CpiSerialize<'view> for AssignWithSeed<'view, '_, '_, SEED_LEN> {
+    type Metas = [AccountMeta<'view>; ASSIGN_WITH_SEED_ACCOUNTS_BUFFER_LEN];
+    type CpiAccounts = [CpiAccount<'view>; ASSIGN_WITH_SEED_ACCOUNTS_BUFFER_LEN];
+    type Data = StackVec<u8, ASSIGN_WITH_SEED_MAX_DATA_LEN>;
 
-impl<'view, const SEED_LEN: usize>
-    CpiSerialize<'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>
-    for AssignWithSeed<'view, '_, '_, SEED_LEN>
-{
     #[inline(always)]
     fn serialize(
         &self,
-    ) -> Result<
-        CpiCtx<
-            'view,
-            'view,
-            'static,
-            AccountMetaBuffer<'view>,
-            CpiAccountBuffer<'view>,
-            DataBuffer,
-        >,
-    > {
+    ) -> Result<CpiCtx<'view, 'view, 'static, Self::Metas, Self::CpiAccounts, Self::Data>> {
         // instruction data
         // - [0..4  ]: instruction discriminator
         // - [4..36 ]: base pubkey
@@ -73,7 +61,7 @@ impl<'view, const SEED_LEN: usize>
         // bytes via `data_length`, so the uninitialized tail is never read.
         // The upper bound of `ASSIGN_WITH_SEED_MAX_DATA_LEN` is respected by the unsafe StackVec pushes.
         let data = unsafe {
-            let mut buf = DataBuffer::new();
+            let mut buf = Self::Data::new();
             buf.push_ptr_unchecked(
                 ASSIGN_WITH_SEED_DISCRIMINATOR.as_ptr(),
                 size_of::<[u8; 4]>(),

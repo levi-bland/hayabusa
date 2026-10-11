@@ -37,29 +37,22 @@ type AccountMetaBuffer<'meta> = [AccountMeta<'meta>; AUTHORIZE_NONCE_ACCOUNT_ACC
 type CpiAccountBuffer<'view> = [CpiAccount<'view>; AUTHORIZE_NONCE_ACCOUNT_ACCOUNTS_BUFFER_LEN];
 type DataBuffer = [u8; AUTHORIZE_NONCE_ACCOUNT_DATA_LEN];
 
-impl<'view> CpiSerialize<'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>
-    for AuthorizeNonceAccount<'view, '_>
-{
+impl<'view> CpiSerialize<'view> for AuthorizeNonceAccount<'view, '_> {
+    type Metas = [AccountMeta<'view>; AUTHORIZE_NONCE_ACCOUNT_ACCOUNTS_BUFFER_LEN];
+    type CpiAccounts = [CpiAccount<'view>; AUTHORIZE_NONCE_ACCOUNT_ACCOUNTS_BUFFER_LEN];
+    type Data = [u8; AUTHORIZE_NONCE_ACCOUNT_DATA_LEN];
+
     #[inline(always)]
     fn serialize(
         &self,
-    ) -> Result<
-        CpiCtx<
-            'view,
-            'view,
-            'static,
-            AccountMetaBuffer<'view>,
-            CpiAccountBuffer<'view>,
-            DataBuffer,
-        >,
-    > {
+    ) -> Result<CpiCtx<'view, 'view, 'static, Self::Metas, Self::CpiAccounts, Self::Data>> {
         // instruction data
         // -  [0..4 ]: instruction discriminator
         // -  [4..36]: new authority
         //
         // SAFETY: all 36 bytes are initialized before `assume_init`.
         let data = unsafe {
-            let mut buf = MaybeUninit::<DataBuffer>::uninit();
+            let mut buf = MaybeUninit::<Self::Data>::uninit();
             let ptr = buf.as_mut_ptr() as *mut u8;
             (ptr as *mut [u8; 4]).write_unaligned(AUTHORIZE_NONCE_ACCOUNT_DISCRIMINATOR);
             copy_nonoverlapping(self.new_authority.as_ref().as_ptr(), ptr.add(4), 32);

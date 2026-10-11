@@ -30,33 +30,22 @@ pub const ASSIGN_DATA_LEN: usize = 36;
 /// The `Assign` instruction discriminator
 pub const ASSIGN_DISCRIMINATOR: [u8; 4] = [1, 0, 0, 0];
 
-type AccountMetaBuffer<'meta> = [AccountMeta<'meta>; ASSIGN_ACCOUNT_ACCOUNTS_BUFFER_LEN];
-type CpiAccountBuffer<'view> = [CpiAccount<'view>; ASSIGN_ACCOUNT_ACCOUNTS_BUFFER_LEN];
-type DataBuffer = [u8; ASSIGN_DATA_LEN];
+impl<'view> CpiSerialize<'view> for Assign<'view, '_> {
+    type Metas = [AccountMeta<'view>; ASSIGN_ACCOUNT_ACCOUNTS_BUFFER_LEN];
+    type CpiAccounts = [CpiAccount<'view>; ASSIGN_ACCOUNT_ACCOUNTS_BUFFER_LEN];
+    type Data = [u8; ASSIGN_DATA_LEN];
 
-impl<'view> CpiSerialize<'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>
-    for Assign<'view, '_>
-{
     #[inline(always)]
     fn serialize(
         &self,
-    ) -> Result<
-        CpiCtx<
-            'view,
-            'view,
-            'static,
-            AccountMetaBuffer<'view>,
-            CpiAccountBuffer<'view>,
-            DataBuffer,
-        >,
-    > {
+    ) -> Result<CpiCtx<'view, 'view, 'static, Self::Metas, Self::CpiAccounts, Self::Data>> {
         // ix data
         // - [0..4]: discriminator
         // - [4..36]: owner pubkey
         //
         // SAFETY: all 36 bytes are initialized before `assume_init` is called.
         let data = unsafe {
-            let mut buf = MaybeUninit::<DataBuffer>::uninit();
+            let mut buf = MaybeUninit::<Self::Data>::uninit();
             let ptr = buf.as_mut_ptr() as *mut u8;
             (ptr as *mut [u8; 4]).write_unaligned(ASSIGN_DISCRIMINATOR);
             copy_nonoverlapping(

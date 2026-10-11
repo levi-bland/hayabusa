@@ -33,19 +33,15 @@ pub const CLOSE_ACCOUNT_DATA_LEN: usize = 1;
 /// The [`CloseAccount`] instruction discriminator.
 pub const CLOSE_ACCOUNT_DISCRIMINATOR: [u8; 1] = [9];
 
-type AccountMetaBuffer<'meta> = [AccountMeta<'meta>; CLOSE_ACCOUNT_ACCOUNTS_BUFFER_LEN];
-type CpiAccountBuffer<'view> = [CpiAccount<'view>; CLOSE_ACCOUNT_ACCOUNTS_BUFFER_LEN];
-type DataBuffer = [u8; CLOSE_ACCOUNT_DATA_LEN];
+impl<'view> CpiSerialize<'view> for CloseAccount<'view> {
+    type Metas = [AccountMeta<'view>; CLOSE_ACCOUNT_ACCOUNTS_BUFFER_LEN];
+    type CpiAccounts = [CpiAccount<'view>; CLOSE_ACCOUNT_ACCOUNTS_BUFFER_LEN];
+    type Data = [u8; CLOSE_ACCOUNT_DATA_LEN];
 
-impl<'view> CpiSerialize<'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>
-    for CloseAccount<'view>
-{
     #[inline(always)]
     fn serialize(
         &self,
-    ) -> Result<
-        CpiCtx<'view, 'view, 'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>,
-    > {
+    ) -> Result<CpiCtx<'view, 'view, 'view, Self::Metas, Self::CpiAccounts, Self::Data>> {
         let data = CLOSE_ACCOUNT_DISCRIMINATOR;
 
         let metas = [

@@ -58,31 +58,17 @@ pub const INITIALIZE_MULTISIG2_DATA_LEN: usize = 2;
 /// The [`InitializeMultisig2`] instruction discriminator.
 pub const INITIALIZE_MULTISIG2_DISCRIMINATOR: [u8; 1] = [19];
 
-type AccountMetaBuffer<'meta, const ACCOUNTS: usize> = [AccountMeta<'meta>; ACCOUNTS];
-type CpiAccountBuffer<'view, const ACCOUNTS: usize> = [CpiAccount<'view>; ACCOUNTS];
-type DataBuffer = [u8; INITIALIZE_MULTISIG2_DATA_LEN];
-
-impl<'view, const ACCOUNTS: usize, P: TokenProgram>
-    CpiSerialize<
-        'view,
-        AccountMetaBuffer<'view, ACCOUNTS>,
-        CpiAccountBuffer<'view, ACCOUNTS>,
-        DataBuffer,
-    > for InitializeMultisig2<'view, '_, ACCOUNTS, P>
+impl<'view, const ACCOUNTS: usize, P: TokenProgram> CpiSerialize<'view>
+    for InitializeMultisig2<'view, '_, ACCOUNTS, P>
 {
+    type Metas = [AccountMeta<'view>; ACCOUNTS];
+    type CpiAccounts = [CpiAccount<'view>; ACCOUNTS];
+    type Data = [u8; INITIALIZE_MULTISIG2_DATA_LEN];
+
     #[inline(always)]
     fn serialize(
         &self,
-    ) -> Result<
-        CpiCtx<
-            'view,
-            'view,
-            'static,
-            AccountMetaBuffer<'view, ACCOUNTS>,
-            CpiAccountBuffer<'view, ACCOUNTS>,
-            DataBuffer,
-        >,
-    > {
+    ) -> Result<CpiCtx<'view, 'view, 'static, Self::Metas, Self::CpiAccounts, Self::Data>> {
         const {
             assert!(
                 ACCOUNTS >= INITIALIZE_MULTISIG2_FIXED_ACCOUNTS + MIN_SIGNERS

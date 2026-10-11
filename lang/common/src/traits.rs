@@ -533,13 +533,14 @@ pub trait AddressTrait<'view> {
 }
 
 /// Serialize a CPI call into the expected wire format.
-pub trait CpiSerialize<'view, M, V, D>
-where
-    M: AsRef<[AccountMeta<'view>]>,
-    V: AsRef<[CpiAccount<'view>]>,
-    D: AsRef<[u8]>,
-{
-    fn serialize(&self) -> Result<CpiCtx<'view, 'view, '_, M, V, D>>;
+pub trait CpiSerialize<'view> {
+    type Metas: AsRef<[AccountMeta<'view>]>;
+    type CpiAccounts: AsRef<[CpiAccount<'view>]>;
+    type Data: AsRef<[u8]>;
+
+    fn serialize(
+        &self,
+    ) -> Result<CpiCtx<'view, 'view, '_, Self::Metas, Self::CpiAccounts, Self::Data>>;
 }
 
 /// A trait for types that hold sysvar data.

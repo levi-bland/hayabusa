@@ -49,22 +49,18 @@ pub const INITIALIZE_MINT_MAX_DATA_LEN: usize =
 /// The [`InitializeMint`] instruction discriminator.
 pub const INITIALIZE_MINT_DISCRIMINATOR: [u8; 1] = [0];
 
-type AccountMetaBuffer<'meta> = [AccountMeta<'meta>; INITIALIZE_MINT_ACCOUNTS_BUFFER_LEN];
-type CpiAccountBuffer<'view> = [CpiAccount<'view>; INITIALIZE_MINT_ACCOUNTS_BUFFER_LEN];
-type DataBuffer = StackVec<u8, INITIALIZE_MINT_MAX_DATA_LEN>;
+impl<'view> CpiSerialize<'view> for InitializeMint<'view, '_> {
+    type Metas = [AccountMeta<'view>; INITIALIZE_MINT_ACCOUNTS_BUFFER_LEN];
+    type CpiAccounts = [CpiAccount<'view>; INITIALIZE_MINT_ACCOUNTS_BUFFER_LEN];
+    type Data = StackVec<u8, INITIALIZE_MINT_MAX_DATA_LEN>;
 
-impl<'view> CpiSerialize<'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>
-    for InitializeMint<'view, '_>
-{
     #[inline(always)]
     fn serialize(
         &self,
-    ) -> Result<
-        CpiCtx<'view, 'view, 'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>,
-    > {
+    ) -> Result<CpiCtx<'view, 'view, 'view, Self::Metas, Self::CpiAccounts, Self::Data>> {
         // SAFETY: `INITIALIZE_MINT_MAX_DATA_LEN` upper bound is respected.
         let data = unsafe {
-            let mut buf = DataBuffer::new();
+            let mut buf = Self::Data::new();
             buf.push_ptr_unchecked(INITIALIZE_MINT_DISCRIMINATOR.as_ptr(), size_of::<[u8; 1]>());
             buf.push_ptr_unchecked(addr_of!(self.decimals), size_of::<u8>());
             buf.push_ptr_unchecked(self.mint_authority.as_ref().as_ptr(), size_of::<Address>());

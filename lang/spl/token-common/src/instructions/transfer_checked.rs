@@ -61,30 +61,18 @@ pub const TRANSFER_CHECKED_DATA_LEN: usize = 10;
 /// The [`TransferChecked`] instruction discriminator.
 pub const TRANSFER_CHECKED_DISCRIMINATOR: [u8; 1] = [12];
 
-type AccountMetaBuffer<'meta> = [AccountMeta<'meta>; TRANSFER_CHECKED_ACCOUNTS_BUFFER_LEN];
-type CpiAccountBuffer<'view> = [CpiAccount<'view>; TRANSFER_CHECKED_ACCOUNTS_BUFFER_LEN];
-type DataBuffer = [u8; TRANSFER_CHECKED_DATA_LEN];
+impl<'view, P: TokenProgram> CpiSerialize<'view> for TransferChecked<'view, P> {
+    type Metas = [AccountMeta<'view>; TRANSFER_CHECKED_ACCOUNTS_BUFFER_LEN];
+    type CpiAccounts = [CpiAccount<'view>; TRANSFER_CHECKED_ACCOUNTS_BUFFER_LEN];
+    type Data = [u8; TRANSFER_CHECKED_DATA_LEN];
 
-impl<'view, P: TokenProgram>
-    CpiSerialize<'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>
-    for TransferChecked<'view, P>
-{
     #[inline(always)]
     fn serialize(
         &self,
-    ) -> Result<
-        CpiCtx<
-            'view,
-            'view,
-            'static,
-            AccountMetaBuffer<'view>,
-            CpiAccountBuffer<'view>,
-            DataBuffer,
-        >,
-    > {
+    ) -> Result<CpiCtx<'view, 'view, 'static, Self::Metas, Self::CpiAccounts, Self::Data>> {
         // SAFETY: buffer fully initialized before `assume_init`.
         let data = unsafe {
-            let mut buf = MaybeUninit::<DataBuffer>::uninit();
+            let mut buf = MaybeUninit::<Self::Data>::uninit();
             let ptr = buf.as_mut_ptr() as *mut u8;
             (ptr as *mut [u8; 1]).write(TRANSFER_CHECKED_DISCRIMINATOR);
             (ptr.add(1) as *mut [u8; 8]).write(self.amount.to_le_bytes());

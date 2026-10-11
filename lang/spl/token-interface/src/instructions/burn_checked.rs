@@ -39,22 +39,18 @@ pub const BURN_CHECKED_DATA_LEN: usize = 10;
 /// The [`BurnChecked`] instruction discriminator.
 pub const BURN_CHECKED_DISCRIMINATOR: [u8; 1] = [15];
 
-type AccountMetaBuffer<'meta> = [AccountMeta<'meta>; BURN_CHECKED_ACCOUNTS_BUFFER_LEN];
-type CpiAccountBuffer<'view> = [CpiAccount<'view>; BURN_CHECKED_ACCOUNTS_BUFFER_LEN];
-type DataBuffer = [u8; BURN_CHECKED_DATA_LEN];
+impl<'view> CpiSerialize<'view> for BurnChecked<'view> {
+    type Metas = [AccountMeta<'view>; BURN_CHECKED_ACCOUNTS_BUFFER_LEN];
+    type CpiAccounts = [CpiAccount<'view>; BURN_CHECKED_ACCOUNTS_BUFFER_LEN];
+    type Data = [u8; BURN_CHECKED_DATA_LEN];
 
-impl<'view> CpiSerialize<'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>
-    for BurnChecked<'view>
-{
     #[inline(always)]
     fn serialize(
         &self,
-    ) -> Result<
-        CpiCtx<'view, 'view, 'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>,
-    > {
+    ) -> Result<CpiCtx<'view, 'view, 'view, Self::Metas, Self::CpiAccounts, Self::Data>> {
         // SAFETY: buffer is fully initialized before `assume_init`.
         let data = unsafe {
-            let mut buf = MaybeUninit::<DataBuffer>::uninit();
+            let mut buf = MaybeUninit::<Self::Data>::uninit();
             let ptr = buf.as_mut_ptr() as *mut u8;
             (ptr as *mut [u8; 1]).write(BURN_CHECKED_DISCRIMINATOR);
             copy_nonoverlapping(

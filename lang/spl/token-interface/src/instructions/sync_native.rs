@@ -30,19 +30,15 @@ pub const SYNC_NATIVE_DATA_LEN: usize = 1;
 /// The [`SyncNative`] instruction discriminator.
 pub const SYNC_NATIVE_DISCRIMINATOR: [u8; 1] = [17];
 
-type AccountMetaBuffer<'meta> = [AccountMeta<'meta>; SYNC_NATIVE_ACCOUNTS_BUFFER_LEN];
-type CpiAccountBuffer<'view> = [CpiAccount<'view>; SYNC_NATIVE_ACCOUNTS_BUFFER_LEN];
-type DataBuffer = [u8; SYNC_NATIVE_DATA_LEN];
+impl<'view> CpiSerialize<'view> for SyncNative<'view> {
+    type Metas = [AccountMeta<'view>; SYNC_NATIVE_ACCOUNTS_BUFFER_LEN];
+    type CpiAccounts = [CpiAccount<'view>; SYNC_NATIVE_ACCOUNTS_BUFFER_LEN];
+    type Data = [u8; SYNC_NATIVE_DATA_LEN];
 
-impl<'view> CpiSerialize<'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>
-    for SyncNative<'view>
-{
     #[inline(always)]
     fn serialize(
         &self,
-    ) -> Result<
-        CpiCtx<'view, 'view, 'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>,
-    > {
+    ) -> Result<CpiCtx<'view, 'view, 'view, Self::Metas, Self::CpiAccounts, Self::Data>> {
         let data = SYNC_NATIVE_DISCRIMINATOR;
 
         let metas = [AccountMeta::writable(self.account.address())];

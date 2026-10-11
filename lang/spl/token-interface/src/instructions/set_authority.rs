@@ -58,23 +58,19 @@ pub const SET_AUTHORITY_DATA_LEN: usize = 35;
 /// The [`SetAuthority`] instruction discriminator.
 pub const SET_AUTHORITY_DISCRIMINATOR: [u8; 1] = [6];
 
-type AccountMetaBuffer<'meta> = [AccountMeta<'meta>; SET_AUTHORITY_ACCOUNTS_BUFFER_LEN];
-type CpiAccountBuffer<'view> = [CpiAccount<'view>; SET_AUTHORITY_ACCOUNTS_BUFFER_LEN];
-type DataBuffer = [u8; SET_AUTHORITY_DATA_LEN];
+impl<'view> CpiSerialize<'view> for SetAuthority<'view, '_> {
+    type Metas = [AccountMeta<'view>; SET_AUTHORITY_ACCOUNTS_BUFFER_LEN];
+    type CpiAccounts = [CpiAccount<'view>; SET_AUTHORITY_ACCOUNTS_BUFFER_LEN];
+    type Data = [u8; SET_AUTHORITY_DATA_LEN];
 
-impl<'view> CpiSerialize<'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>
-    for SetAuthority<'view, '_>
-{
     #[inline(always)]
     fn serialize(
         &self,
-    ) -> Result<
-        CpiCtx<'view, 'view, 'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>,
-    > {
+    ) -> Result<CpiCtx<'view, 'view, 'view, Self::Metas, Self::CpiAccounts, Self::Data>> {
         // SAFETY: buffer is fully initialized before `assume_init`; both
         // branches write the option tag and all 32 trailing bytes.
         let data = unsafe {
-            let mut buf = MaybeUninit::<DataBuffer>::uninit();
+            let mut buf = MaybeUninit::<Self::Data>::uninit();
             let ptr = buf.as_mut_ptr() as *mut u8;
             (ptr as *mut [u8; 1]).write(SET_AUTHORITY_DISCRIMINATOR);
             ptr.add(1).write(self.authority_type as u8);

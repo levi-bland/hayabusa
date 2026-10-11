@@ -31,33 +31,22 @@ pub const TRANSFER_DATA_LEN: usize = 12;
 /// The `Transfer` instruction discriminator
 pub const TRANSFER_DISCRIMINATOR: [u8; 4] = [2, 0, 0, 0];
 
-type AccountMetaBuffer<'meta> = [AccountMeta<'meta>; TRANSFER_ACCOUNTS_BUFFER_LEN];
-type CpiAccountBuffer<'view> = [CpiAccount<'view>; TRANSFER_ACCOUNTS_BUFFER_LEN];
-type DataBuffer = [u8; TRANSFER_DATA_LEN];
+impl<'view> CpiSerialize<'view> for Transfer<'view> {
+    type Metas = [AccountMeta<'view>; TRANSFER_ACCOUNTS_BUFFER_LEN];
+    type CpiAccounts = [CpiAccount<'view>; TRANSFER_ACCOUNTS_BUFFER_LEN];
+    type Data = [u8; TRANSFER_DATA_LEN];
 
-impl<'view> CpiSerialize<'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>
-    for Transfer<'view>
-{
     #[inline(always)]
     fn serialize(
         &self,
-    ) -> Result<
-        CpiCtx<
-            'view,
-            'view,
-            'static,
-            AccountMetaBuffer<'view>,
-            CpiAccountBuffer<'view>,
-            DataBuffer,
-        >,
-    > {
+    ) -> Result<CpiCtx<'view, 'view, 'static, Self::Metas, Self::CpiAccounts, Self::Data>> {
         // ix data
         // - [0..4]: discriminator
         // - [4..12]: lamports amount
         //
         // SAFETY: all 12 bytes are initialized before calling `assume_init`
         let data = unsafe {
-            let mut buf = MaybeUninit::<DataBuffer>::uninit();
+            let mut buf = MaybeUninit::<Self::Data>::uninit();
             let ptr = buf.as_mut_ptr() as *mut u8;
             (ptr as *mut [u8; 4]).write_unaligned(TRANSFER_DISCRIMINATOR);
             (ptr.add(4) as *mut u64).write_unaligned(self.lamports);

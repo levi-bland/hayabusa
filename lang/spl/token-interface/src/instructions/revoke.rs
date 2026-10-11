@@ -29,19 +29,15 @@ pub const REVOKE_DATA_LEN: usize = 1;
 /// The [`Revoke`] instruction discriminator.
 pub const REVOKE_DISCRIMINATOR: [u8; 1] = [5];
 
-type AccountMetaBuffer<'meta> = [AccountMeta<'meta>; REVOKE_ACCOUNTS_BUFFER_LEN];
-type CpiAccountBuffer<'view> = [CpiAccount<'view>; REVOKE_ACCOUNTS_BUFFER_LEN];
-type DataBuffer = [u8; REVOKE_DATA_LEN];
+impl<'view> CpiSerialize<'view> for Revoke<'view> {
+    type Metas = [AccountMeta<'view>; REVOKE_ACCOUNTS_BUFFER_LEN];
+    type CpiAccounts = [CpiAccount<'view>; REVOKE_ACCOUNTS_BUFFER_LEN];
+    type Data = [u8; REVOKE_DATA_LEN];
 
-impl<'view> CpiSerialize<'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>
-    for Revoke<'view>
-{
     #[inline(always)]
     fn serialize(
         &self,
-    ) -> Result<
-        CpiCtx<'view, 'view, 'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>,
-    > {
+    ) -> Result<CpiCtx<'view, 'view, 'view, Self::Metas, Self::CpiAccounts, Self::Data>> {
         let data = REVOKE_DISCRIMINATOR;
 
         let metas = [

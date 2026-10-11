@@ -43,9 +43,11 @@ type AccountMetaBuffer<'meta> = [AccountMeta<'meta>; TRANSFER_CHECKED_ACCOUNTS_B
 type CpiAccountBuffer<'view> = [CpiAccount<'view>; TRANSFER_CHECKED_ACCOUNTS_BUFFER_LEN];
 type DataBuffer = [u8; TRANSFER_CHECKED_DATA_LEN];
 
-impl<'view> CpiSerialize<'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>
-    for TransferChecked<'view>
-{
+impl<'view> CpiSerialize<'view> for TransferChecked<'view> {
+    type Metas = [AccountMeta<'view>; TRANSFER_CHECKED_ACCOUNTS_BUFFER_LEN];
+    type CpiAccounts = [CpiAccount<'view>; TRANSFER_CHECKED_ACCOUNTS_BUFFER_LEN];
+    type Data = [u8; TRANSFER_CHECKED_DATA_LEN];
+
     #[inline(always)]
     fn serialize(
         &self,

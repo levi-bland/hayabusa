@@ -50,27 +50,15 @@ pub const FREEZE_ACCOUNT_DATA_LEN: usize = 1;
 /// The [`FreezeAccount`] instruction discriminator.
 pub const FREEZE_ACCOUNT_DISCRIMINATOR: [u8; 1] = [10];
 
-type AccountMetaBuffer<'meta> = [AccountMeta<'meta>; FREEZE_ACCOUNT_ACCOUNTS_BUFFER_LEN];
-type CpiAccountBuffer<'view> = [CpiAccount<'view>; FREEZE_ACCOUNT_ACCOUNTS_BUFFER_LEN];
-type DataBuffer = [u8; FREEZE_ACCOUNT_DATA_LEN];
+impl<'view, P: TokenProgram> CpiSerialize<'view> for FreezeAccount<'view, P> {
+    type Metas = [AccountMeta<'view>; FREEZE_ACCOUNT_ACCOUNTS_BUFFER_LEN];
+    type CpiAccounts = [CpiAccount<'view>; FREEZE_ACCOUNT_ACCOUNTS_BUFFER_LEN];
+    type Data = [u8; FREEZE_ACCOUNT_DATA_LEN];
 
-impl<'view, P: TokenProgram>
-    CpiSerialize<'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>
-    for FreezeAccount<'view, P>
-{
     #[inline(always)]
     fn serialize(
         &self,
-    ) -> Result<
-        CpiCtx<
-            'view,
-            'view,
-            'static,
-            AccountMetaBuffer<'view>,
-            CpiAccountBuffer<'view>,
-            DataBuffer,
-        >,
-    > {
+    ) -> Result<CpiCtx<'view, 'view, 'static, Self::Metas, Self::CpiAccounts, Self::Data>> {
         let data = FREEZE_ACCOUNT_DISCRIMINATOR;
 
         let metas = [

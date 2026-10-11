@@ -50,27 +50,17 @@ pub const CREATE_ACCOUNT_WITH_SEED_MAX_DATA_LEN: usize =
 /// The `CreateAccountWithSeed` system program instruction discriminator;
 pub const CREATE_ACCOUNT_WITH_SEED_DISCRIMINATOR: [u8; 4] = [3, 0, 0, 0];
 
-type AccountMetaBuffer<'meta> = [AccountMeta<'meta>; CREATE_ACCOUNT_WITH_SEED_ACCOUNTS_BUFFER_LEN];
-type CpiAccountBuffer<'view> = [CpiAccount<'view>; CREATE_ACCOUNT_WITH_SEED_ACCOUNTS_BUFFER_LEN];
-type DataBuffer = StackVec<u8, CREATE_ACCOUNT_WITH_SEED_MAX_DATA_LEN>;
-
-impl<'view, const SEED_LEN: usize>
-    CpiSerialize<'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>
+impl<'view, const SEED_LEN: usize> CpiSerialize<'view>
     for CreateAccountWithSeed<'view, '_, '_, SEED_LEN>
 {
+    type Metas = [AccountMeta<'view>; CREATE_ACCOUNT_WITH_SEED_ACCOUNTS_BUFFER_LEN];
+    type CpiAccounts = [CpiAccount<'view>; CREATE_ACCOUNT_WITH_SEED_ACCOUNTS_BUFFER_LEN];
+    type Data = StackVec<u8, CREATE_ACCOUNT_WITH_SEED_MAX_DATA_LEN>;
+
     #[inline(always)]
     fn serialize(
         &self,
-    ) -> Result<
-        CpiCtx<
-            'view,
-            'view,
-            'static,
-            AccountMetaBuffer<'view>,
-            CpiAccountBuffer<'view>,
-            DataBuffer,
-        >,
-    > {
+    ) -> Result<CpiCtx<'view, 'view, 'static, Self::Metas, Self::CpiAccounts, Self::Data>> {
         let lamports = crate::system_program::minimum_balance(self.space as usize)?;
         let base = self.base.unwrap_or(self.from);
         let seed_len = SEED_LEN as u64;
@@ -88,7 +78,7 @@ impl<'view, const SEED_LEN: usize>
         // bytes via `data_length`, so the uninitialized tail is never read.
         // The upper bound of `CREATE_ACCOUNT_WITH_SEED_MAX_DATA_LEN` is respected.
         let data = unsafe {
-            let mut buf = DataBuffer::new();
+            let mut buf = Self::Data::new();
             buf.push_ptr_unchecked(
                 CREATE_ACCOUNT_WITH_SEED_DISCRIMINATOR.as_ptr(),
                 size_of::<[u8; 4]>(),

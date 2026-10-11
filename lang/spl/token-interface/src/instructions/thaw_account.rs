@@ -31,19 +31,15 @@ pub const THAW_ACCOUNT_DATA_LEN: usize = 1;
 /// The [`ThawAccount`] instruction discriminator.
 pub const THAW_ACCOUNT_DISCRIMINATOR: [u8; 1] = [11];
 
-type AccountMetaBuffer<'meta> = [AccountMeta<'meta>; THAW_ACCOUNT_ACCOUNTS_BUFFER_LEN];
-type CpiAccountBuffer<'view> = [CpiAccount<'view>; THAW_ACCOUNT_ACCOUNTS_BUFFER_LEN];
-type DataBuffer = [u8; THAW_ACCOUNT_DATA_LEN];
+impl<'view> CpiSerialize<'view> for ThawAccount<'view> {
+    type Metas = [AccountMeta<'view>; THAW_ACCOUNT_ACCOUNTS_BUFFER_LEN];
+    type CpiAccounts = [CpiAccount<'view>; THAW_ACCOUNT_ACCOUNTS_BUFFER_LEN];
+    type Data = [u8; THAW_ACCOUNT_DATA_LEN];
 
-impl<'view> CpiSerialize<'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>
-    for ThawAccount<'view>
-{
     #[inline(always)]
     fn serialize(
         &self,
-    ) -> Result<
-        CpiCtx<'view, 'view, 'view, AccountMetaBuffer<'view>, CpiAccountBuffer<'view>, DataBuffer>,
-    > {
+    ) -> Result<CpiCtx<'view, 'view, 'view, Self::Metas, Self::CpiAccounts, Self::Data>> {
         let data = THAW_ACCOUNT_DISCRIMINATOR;
 
         let metas = [
