@@ -539,7 +539,7 @@ where
     V: AsRef<[CpiAccount<'view>]>,
     D: AsRef<[u8]>,
 {
-    fn serialize(&self) -> Result<CpiCtx<'view, 'view, 'static, M, V, D>>;
+    fn serialize(&self) -> Result<CpiCtx<'view, 'view, '_, M, V, D>>;
 }
 
 /// A trait for types that hold sysvar data.

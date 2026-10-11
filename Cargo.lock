@@ -312,6 +312,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "hayabusa-spl-token-interface"
+version = "0.1.0"
+dependencies = [
+ "hayabusa-common",
+ "hayabusa-invoke-cpi-macros",
+ "solana-program-error",
+]
+
+[[package]]
 name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

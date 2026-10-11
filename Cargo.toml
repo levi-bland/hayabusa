@@ -39,6 +39,7 @@ hayabusa = { path = "lang/hayabusa" }
 hayabusa-common = { path = "lang/common" }
 hayabusa-spl-token = { path = "lang/spl/token" }
 hayabusa-spl-token-common = { path = "lang/spl/token-common" }
+hayabusa-spl-token-interface = { path = "lang/spl/token-interface" }
 hayabusa-err-macro = { path = "lang/macros/err-macro" }
 hayabusa-account-attribute = { path = "lang/attribute/hayabusa-account-attribute" }
 hayabusa-discriminator-derive = { path = "lang/derive/hayabusa-discriminator-derive" }

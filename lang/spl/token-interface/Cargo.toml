@@ -1,0 +1,9 @@
+[package]
+name = "hayabusa-spl-token-interface"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+hayabusa-common.workspace = true
+hayabusa-invoke-cpi-macros.workspace = true
+solana-program-error.workspace = true
