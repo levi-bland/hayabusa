@@ -1,6 +1,8 @@
 // Copyright (c) 2026, Levi Bland <levi.bland@icloud.com>
 // SPDX-License-Identifier: Apache-2.0
 
+#![no_std]
+
 pub mod instructions;
 pub mod state;
 
