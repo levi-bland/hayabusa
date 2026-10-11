@@ -382,6 +382,16 @@ pub struct Seed<'bytes> {
     _bytes: PhantomData<&'bytes [u8]>,
 }
 
+impl Seed<'static> {
+    pub const fn new(seed: &'static [u8]) -> Self {
+        Self {
+            seed: seed.as_ptr(),
+            len: seed.len() as u64,
+            _bytes: PhantomData,
+        }
+    }
+}
+
 impl<'bytes> From<&'bytes [u8]> for Seed<'bytes> {
     #[inline(always)]
     fn from(value: &'bytes [u8]) -> Self {
