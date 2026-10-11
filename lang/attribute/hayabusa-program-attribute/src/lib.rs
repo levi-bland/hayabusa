@@ -6,8 +6,8 @@ use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::quote;
 use syn::{
-    parse_macro_input, visit_mut::VisitMut, FnArg, GenericArgument, Ident, Item, ItemFn, ItemMod,
-    Lifetime, Pat, PathArguments, Result, Type,
+    parse_macro_input, visit_mut::VisitMut, Attribute, Expr, ExprLit, FnArg, GenericArgument,
+    Ident, Item, ItemFn, ItemMod, Lifetime, Lit, LitInt, Meta, Pat, PathArguments, Result, Type,
 };
 
 #[proc_macro_attribute]
@@ -27,14 +27,35 @@ fn expand_program(module: ItemMod) -> Result<proc_macro2::TokenStream> {
     let mut ix_structs = vec![];
     let mut dispatch_arms = vec![];
     let mut preserved_items = vec![];
+    let mut seen_discriminators = Vec::new();
 
     for item in items {
         if let Item::Fn(func) = &item {
-            extract_instruction(func, &mut ix_structs, &mut dispatch_arms)?;
+            let explicit = explicit_discriminator(func)?;
+            if let Some(disc) = &explicit {
+                let key = format!("{}{}", disc.lit.suffix(), disc.lit.base10_digits());
+                if seen_discriminators.iter().any(|seen| seen == &key) {
+                    return Err(syn::Error::new(
+                        disc.lit.span(),
+                        "duplicate instruction discriminator",
+                    ));
+                }
+                seen_discriminators.push(key);
+            }
+
+            extract_instruction(func, explicit.as_ref(), &mut ix_structs, &mut dispatch_arms)?;
+
+            let mut func = func.clone();
+            func.attrs
+                .retain(|attr| !attr.path().is_ident("discriminator"));
+            preserved_items.push(Item::Fn(func));
+            continue;
         }
 
         preserved_items.push(item);
     }
+
+    let dispatch = dispatch_body(&dispatch_arms);
 
     Ok(quote! {
         pub mod instruction {
@@ -62,21 +83,7 @@ fn expand_program(module: ItemMod) -> Result<proc_macro2::TokenStream> {
                     return Err(ProgramError::IncorrectProgramId);
                 }
 
-                const DISC_LEN: usize = 8;
-
-                if hint::unlikely(ix_data.len() < DISC_LEN) {
-                    return Err(ProgramError::InvalidInstructionData);
-                }
-
-                let (disc, rest) = {
-                    let ptr = ix_data.as_ptr();
-                    (&ix_data[..DISC_LEN], &ix_data[DISC_LEN..])
-                };
-
-                match disc {
-                    #(#dispatch_arms)*
-                    _ => Err(ErrorCode::UnknownInstruction.into()),
-                }
+                #dispatch
             }
 
             #(#preserved_items)*
@@ -84,10 +91,62 @@ fn expand_program(module: ItemMod) -> Result<proc_macro2::TokenStream> {
     })
 }
 
+struct ExplicitDisc {
+    lit: LitInt,
+    len: usize,
+}
+
+struct DispatchArm {
+    disc_len: usize,
+    match_arm: proc_macro2::TokenStream,
+    prefix_if: proc_macro2::TokenStream,
+}
+
+fn dispatch_body(dispatch_arms: &[DispatchArm]) -> proc_macro2::TokenStream {
+    let variable_width = dispatch_arms.iter().any(|arm| arm.disc_len != 8);
+
+    if !variable_width {
+        let match_arms = dispatch_arms.iter().map(|arm| &arm.match_arm);
+        return quote! {
+            const DISC_LEN: usize = 8;
+
+            if hint::unlikely(ix_data.len() < DISC_LEN) {
+                return Err(ProgramError::InvalidInstructionData);
+            }
+
+            let (disc, rest) = {
+                let ptr = ix_data.as_ptr();
+                (&ix_data[..DISC_LEN], &ix_data[DISC_LEN..])
+            };
+
+            match disc {
+                #(#match_arms)*
+                _ => Err(ErrorCode::UnknownInstruction.into()),
+            }
+        };
+    }
+
+    let mut arms: Vec<&DispatchArm> = dispatch_arms.iter().collect();
+    arms.sort_by(|a, b| b.disc_len.cmp(&a.disc_len));
+    let min_len = arms.iter().map(|arm| arm.disc_len).min().unwrap_or(8);
+    let prefix_ifs = arms.iter().map(|arm| &arm.prefix_if);
+
+    quote! {
+        if hint::unlikely(ix_data.len() < #min_len) {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        #(#prefix_ifs)*
+
+        Err(ErrorCode::UnknownInstruction.into())
+    }
+}
+
 fn extract_instruction(
     func: &ItemFn,
+    explicit: Option<&ExplicitDisc>,
     ix_structs: &mut Vec<proc_macro2::TokenStream>,
-    dispatch_arms: &mut Vec<proc_macro2::TokenStream>,
+    dispatch_arms: &mut Vec<DispatchArm>,
 ) -> Result<()> {
     let fn_name = &func.sig.ident;
     let mut fn_name_str = fn_name.to_string().to_upper_camel_case();
@@ -135,38 +194,149 @@ fn extract_instruction(
         arg_idents.push(ident.clone())
     }
 
-    ix_structs.push(quote! {
-        #[derive(
-            Discriminator,
-            ::hayabusa::prelude::BorshDeserialize,
-            ::hayabusa::prelude::BorshSerialize,
-        )]
-        #[borsh(crate = "::hayabusa::prelude::borsh")]
-        #[discriminator(namespace = "instruction")]
-        pub struct #struct_ident {
-            #(#fields),*
+    let struct_def = if let Some(disc) = explicit {
+        let lit = &disc.lit;
+        let len = disc.len;
+        quote! {
+            #[derive(
+                ::hayabusa::prelude::BorshDeserialize,
+                ::hayabusa::prelude::BorshSerialize,
+            )]
+            #[borsh(crate = "::hayabusa::prelude::borsh")]
+            pub struct #struct_ident {
+                #(#fields),*
+            }
+
+            #[automatically_derived]
+            impl ::hayabusa::prelude::Discriminator for #struct_ident {
+                const DISCRIMINATOR: &[u8] = {
+                    const BYTES: [u8; #len] = #lit.to_le_bytes();
+                    &BYTES
+                };
+            }
         }
-    });
-
-    dispatch_arms.push(quote! {
-        <#struct_ident as Discriminator>::DISCRIMINATOR => {
-            let mut accounts_iter = AccountIter::new(views);
-
-            let ix_data = <#struct_ident as ::hayabusa::prelude::borsh::BorshDeserialize>::try_from_slice(rest)
-                .map_err(|_| ProgramError::InvalidInstructionData)?;
-
-            let mut bumps = <<#ctx_type as Bumps>::Bumps as Default>::default();
-
-            let mut accounts = <#ctx_type as ParseAccounts<'_, <#ctx_type as Bumps>::Bumps>>::parse_accounts(&mut accounts_iter, rest, &mut bumps)?;
-
-            let ctx = Ctx::new(program_id, &mut accounts, accounts_iter.remaining(), bumps);
-
-            #fn_name(ctx, #(ix_data.#arg_idents),*)
-                .map_err(Into::into)
+    } else {
+        quote! {
+            #[derive(
+                Discriminator,
+                ::hayabusa::prelude::BorshDeserialize,
+                ::hayabusa::prelude::BorshSerialize,
+            )]
+            #[borsh(crate = "::hayabusa::prelude::borsh")]
+            #[discriminator(namespace = "instruction")]
+            pub struct #struct_ident {
+                #(#fields),*
+            }
         }
+    };
+    ix_structs.push(struct_def);
+
+    let body = quote! {
+        let mut accounts_iter = AccountIter::new(views);
+
+        let ix_data = <#struct_ident as ::hayabusa::prelude::borsh::BorshDeserialize>::try_from_slice(rest)
+            .map_err(|_| ProgramError::InvalidInstructionData)?;
+
+        let mut bumps = <<#ctx_type as Bumps>::Bumps as Default>::default();
+
+        let mut accounts = <#ctx_type as ParseAccounts<'_, <#ctx_type as Bumps>::Bumps>>::parse_accounts(&mut accounts_iter, rest, &mut bumps)?;
+
+        let ctx = Ctx::new(program_id, &mut accounts, accounts_iter.remaining(), bumps);
+
+        #fn_name(ctx, #(ix_data.#arg_idents),*)
+            .map_err(Into::into)
+    };
+
+    dispatch_arms.push(DispatchArm {
+        disc_len: explicit.map(|disc| disc.len).unwrap_or(8),
+        match_arm: quote! {
+            <#struct_ident as Discriminator>::DISCRIMINATOR => {
+                #body
+            }
+        },
+        prefix_if: quote! {
+            if ix_data.starts_with(<#struct_ident as Discriminator>::DISCRIMINATOR) {
+                let rest = &ix_data[<#struct_ident as Discriminator>::DISCRIMINATOR.len()..];
+                return { #body };
+            }
+        },
     });
 
     Ok(())
+}
+
+fn explicit_discriminator(func: &ItemFn) -> Result<Option<ExplicitDisc>> {
+    let mut found = None;
+
+    for attr in &func.attrs {
+        if !attr.path().is_ident("discriminator") {
+            continue;
+        }
+        if found.is_some() {
+            return Err(syn::Error::new_spanned(
+                attr,
+                "duplicate #[discriminator] attribute",
+            ));
+        }
+        found = Some(parse_discriminator_attr(attr)?);
+    }
+
+    Ok(found)
+}
+
+fn parse_discriminator_attr(attr: &Attribute) -> Result<ExplicitDisc> {
+    let Meta::NameValue(name_value) = &attr.meta else {
+        return Err(syn::Error::new_spanned(
+            attr,
+            "expected #[discriminator = N], for example #[discriminator = 0u8]",
+        ));
+    };
+
+    let Expr::Lit(ExprLit {
+        lit: Lit::Int(lit), ..
+    }) = &name_value.value
+    else {
+        return Err(syn::Error::new_spanned(
+            &name_value.value,
+            "expected an integer literal with a type suffix, such as `0u8` or `1u32`",
+        ));
+    };
+
+    let len = match lit.suffix() {
+        "u8" => {
+            lit.base10_parse::<u8>()?;
+            1
+        }
+        "u16" => {
+            lit.base10_parse::<u16>()?;
+            2
+        }
+        "u32" => {
+            lit.base10_parse::<u32>()?;
+            4
+        }
+        "u64" => {
+            lit.base10_parse::<u64>()?;
+            8
+        }
+        "" => {
+            return Err(syn::Error::new_spanned(
+                lit,
+                "expected an integer literal with a type suffix, such as `0u8` or `1u32`",
+            ));
+        }
+        other => {
+            return Err(syn::Error::new_spanned(
+                lit,
+                format!("unsupported discriminator type `{other}`, expected u8, u16, u32, or u64"),
+            ));
+        }
+    };
+
+    Ok(ExplicitDisc {
+        lit: lit.clone(),
+        len,
+    })
 }
 
 fn extract_ctx_inner(ty: &Type) -> Result<Type> {
@@ -281,5 +451,69 @@ mod tests {
             expanded.contains("ctx : Ctx < 'view , IncrementCounter < 'view > >"),
             "{expanded}"
         );
+    }
+
+    #[test]
+    fn custom_discriminator_overrides_hash() {
+        let expanded = expand(syn::parse_quote! {
+            pub mod counter {
+                #[discriminator = 0u8]
+                pub fn test_instruction(ctx: Ctx<TestAccounts>) -> Result<()> {
+                    Ok(())
+                }
+
+                pub fn hashed(ctx: Ctx<HashedAccounts>) -> Result<()> {
+                    Ok(())
+                }
+            }
+        });
+
+        assert!(
+            expanded.contains("const BYTES : [u8 ; 1usize] = 0u8 . to_le_bytes ()"),
+            "{expanded}"
+        );
+        assert!(expanded.contains("ix_data . starts_with"), "{expanded}");
+        assert!(!expanded.contains("discriminator ="), "{expanded}");
+        assert!(
+            expanded.contains("namespace = \"instruction\""),
+            "{expanded}"
+        );
+    }
+
+    #[test]
+    fn rejects_unsuffixed_discriminator() {
+        let err = expand_program(syn::parse_quote! {
+            pub mod counter {
+                #[discriminator = 0]
+                pub fn test_instruction(ctx: Ctx<TestAccounts>) -> Result<()> {
+                    Ok(())
+                }
+            }
+        })
+        .unwrap_err()
+        .to_string();
+
+        assert!(err.contains("type suffix"), "{err}");
+    }
+
+    #[test]
+    fn rejects_duplicate_discriminator() {
+        let err = expand_program(syn::parse_quote! {
+            pub mod counter {
+                #[discriminator = 1u8]
+                pub fn first(ctx: Ctx<First>) -> Result<()> {
+                    Ok(())
+                }
+
+                #[discriminator = 1u8]
+                pub fn second(ctx: Ctx<Second>) -> Result<()> {
+                    Ok(())
+                }
+            }
+        })
+        .unwrap_err()
+        .to_string();
+
+        assert!(err.contains("duplicate instruction discriminator"), "{err}");
     }
 }
