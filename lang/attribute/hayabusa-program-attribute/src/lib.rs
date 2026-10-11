@@ -6,8 +6,8 @@ use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::quote;
 use syn::{
-    parse_macro_input, FnArg, GenericArgument, Ident, Item, ItemFn, ItemMod, Pat, PathArguments,
-    Result, Type,
+    parse_macro_input, visit_mut::VisitMut, FnArg, GenericArgument, Ident, Item, ItemFn, ItemMod,
+    Lifetime, Pat, PathArguments, Result, Type,
 };
 
 #[proc_macro_attribute]
@@ -104,17 +104,11 @@ fn extract_instruction(
                 extract_ctx_inner(ty)?
             }
             syn::FnArg::Receiver(_) => {
-                return Err(syn::Error::new_spanned(
-                    ctx_arg,
-                    "expected Ctx<T> type as first argument",
-                ));
+                return Err(expected_ctx(&ctx_arg));
             }
         }
     } else {
-        return Err(syn::Error::new_spanned(
-            func,
-            "expected Ctx<T> type as first argument",
-        ));
+        return Err(expected_ctx(func));
     };
 
     let mut fields = vec![];
@@ -186,29 +180,106 @@ fn extract_ctx_inner(ty: &Type) -> Result<Type> {
         })?;
 
     if segment.ident != "Ctx" {
-        return Err(syn::Error::new_spanned(
-            ty,
-            "expected Ctx<T> type as first argument",
-        ));
+        return Err(expected_ctx(ty));
     }
 
     let PathArguments::AngleBracketed(args) = &segment.arguments else {
-        return Err(syn::Error::new_spanned(
-            ty,
-            "expected Ctx<T> type as first argument",
-        ));
+        return Err(expected_ctx(ty));
     };
 
-    let GenericArgument::Type(inner) = args
-        .args
-        .first()
-        .ok_or_else(|| syn::Error::new_spanned(ty, "expected Ctx<T> type as first argument"))?
-    else {
-        return Err(syn::Error::new_spanned(
-            ty,
-            "expected Ctx<T> type as first argument",
-        ));
+    // `Ctx<T>` elides the context lifetime. `Ctx<'view, T<'view>>` names it.
+    let mut ctx_lifetime = None;
+    let mut inner = None;
+
+    for arg in &args.args {
+        match arg {
+            GenericArgument::Lifetime(lifetime) if ctx_lifetime.is_none() && inner.is_none() => {
+                ctx_lifetime = Some(lifetime);
+            }
+            GenericArgument::Type(inner_ty) if inner.is_none() => {
+                inner = Some(inner_ty.clone());
+            }
+            _ => return Err(expected_ctx(ty)),
+        }
+    }
+
+    let Some(mut inner) = inner else {
+        return Err(expected_ctx(ty));
     };
 
-    Ok(inner.clone())
+    // The handler lifetime is not in scope in the dispatcher. `'_` is inferred
+    // from the account views and unified with the handler signature.
+    if let Some(lifetime) = ctx_lifetime {
+        ElideLifetime { lifetime }.visit_type_mut(&mut inner);
+    }
+
+    Ok(inner)
+}
+
+fn expected_ctx(tokens: impl quote::ToTokens) -> syn::Error {
+    syn::Error::new_spanned(
+        tokens,
+        "expected Ctx<T> or Ctx<'view, T<'view>> as the first argument",
+    )
+}
+
+struct ElideLifetime<'a> {
+    lifetime: &'a Lifetime,
+}
+
+impl VisitMut for ElideLifetime<'_> {
+    fn visit_lifetime_mut(&mut self, lifetime: &mut Lifetime) {
+        if lifetime.ident == self.lifetime.ident {
+            lifetime.ident = Ident::new("_", lifetime.ident.span());
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn expand(module: ItemMod) -> String {
+        expand_program(module).unwrap().to_string()
+    }
+
+    #[test]
+    fn accepts_elided_ctx() {
+        let expanded = expand(syn::parse_quote! {
+            pub mod counter {
+                pub fn initialize(ctx: Ctx<InitializeCounter>) -> Result<()> {
+                    Ok(())
+                }
+            }
+        });
+
+        assert!(
+            expanded.contains("InitializeCounter as ParseAccounts"),
+            "{expanded}"
+        );
+        assert!(!expanded.contains("InitializeCounter < '_ >"), "{expanded}");
+    }
+
+    #[test]
+    fn accepts_explicit_ctx_lifetime() {
+        let expanded = expand(syn::parse_quote! {
+            pub mod counter {
+                pub fn increment<'view>(
+                    ctx: Ctx<'view, IncrementCounter<'view>>,
+                    amount: u64,
+                ) -> Result<()> {
+                    Ok(())
+                }
+            }
+        });
+
+        assert!(
+            expanded.contains("IncrementCounter < '_ > as ParseAccounts"),
+            "{expanded}"
+        );
+        assert!(
+            expanded.contains("ctx : Ctx < 'view , IncrementCounter < 'view > >"),
+            "{expanded}"
+        );
+    }
 }

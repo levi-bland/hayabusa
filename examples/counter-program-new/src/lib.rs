@@ -14,7 +14,7 @@ pub mod counter_program {
         Ok(())
     }
 
-    pub fn increment_counter(ctx: Ctx<IncrementCounter>) -> Result<()> {
+    pub fn increment_counter<'view>(ctx: Ctx<'view, IncrementCounter<'view>>) -> Result<()> {
         let mut counter = ctx.accounts.counter.cast_mut()?;
 
         counter.count += 1;
